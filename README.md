@@ -28,4 +28,3 @@ Gameplay code remains in its owning repositories:
 
 Repository scaffold only. The first milestone is a stable reproducible base
 pack and an explicit mod list approval before custom-mod integration.
-NeoForge modpack manifest, configuration, compatibility, and distribution for Regnum
