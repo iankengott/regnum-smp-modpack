@@ -1,9 +1,14 @@
 # Regnum SMP Modpack AI handoff
 
 This file is the starting point for any AI or developer continuing the Regnum
-SMP Modpack. This repository is currently a scaffold only: it has no manifest,
-configuration set, release artifact, or verified pack behavior. The target is
-NeoForge 1.21.1.
+SMP Modpack. The repository now holds the live pack: the full mod configuration
+set and hash manifests for NeoForge 1.21.1. It still has no release artifact or
+verified pack behavior.
+
+The checkout is a live Prism Launcher instance directory. Most of what sits
+beside the tracked files — jars, worlds, logs, LODs — is deliberately
+untracked, and `.gitignore` is whitelist-only. Read `README.md` before adding
+any path to git.
 
 ## Read first
 
@@ -14,14 +19,15 @@ NeoForge 1.21.1.
    order and this handoff must be updated to point to it.
 
 Never report pack commands, manifests, tests, launchers, services, or supported
-combinations that do not yet exist in this scaffold.
+combinations that do not yet exist.
 
 ## Current checkpoint
 
-As of 2026-08-13, this is a documentation-only repository scaffold targeting
-NeoForge 1.21.1. No mod list has been approved and no reproducible client or
-server pack has been implemented. The first milestone remains an explicit mod
-list decision and stable reproducible base pack before custom-mod integration.
+As of 2026-08-20, the repository tracks the live pack's configuration and
+manifests, generated from the main PC's working instance: 269 mods, 7 resource
+packs, 1 shader pack, and 2 datapacks, on Minecraft 1.21.1 / NeoForge 21.1.248.
+The mod list is what is installed, not an approved list — approval, a
+compatibility matrix, and a reproducible release artifact are still open.
 
 ## Subagent collaboration
 
@@ -34,12 +40,19 @@ complete verification ladder.
 ## Repository and machine boundaries
 
 - Main PC identity: `nixos` / `iank`.
-- Main-PC checkout:
-  `/home/iank/Desktop/my mods/mods-editing/regnum-smp-modpack`
+- Main-PC checkout — the live Prism instance, and the source of truth for
+  manifests:
+  `/home/iank/.local/share/PrismLauncher/instances/1.21.1`
+  The older documentation-only checkout at
+  `/home/iank/Desktop/my mods/mods-editing/regnum-smp-modpack` predates this
+  and will read as stale; do not commit from it.
 - Public remote:
   `https://github.com/iankengott/regnum-smp-modpack`
-- No Hermes mirror, development port, launcher, or service exists for this
-  repository yet. Do not invent or operate one without explicit setup.
+- A `regnum-modpack-sync` systemd **user** timer on the main PC polls origin
+  and fast-forwards the instance, declared in `/etc/nixos/home.nix`. It is
+  guarded: it skips while Minecraft is running and never discards local edits.
+- No Hermes mirror, development port, or launcher exists for this repository
+  yet. Do not invent or operate one without explicit setup.
 - Never touch production/modpack servers, Minecraft tmux sessions, unrelated
   saves, or another Regnum repository while testing this project.
 - Preserve unrelated user changes and keep generated worlds, logs, caches,
@@ -64,10 +77,12 @@ Use verification proportionate to the change. At the current scaffold stage:
 
 1. Check Markdown links and factual consistency, search for stale scaffold
    claims, and run `git diff --check`.
-2. When manifests and configuration exist, use their documented validation
-   tools; verify schema, pinned versions, hashes, dependency/load-order rules,
-   client/server inclusion, JSON, and shell syntax. Confirm the same inputs
-   reproduce the same pack contents.
+2. For manifest or config changes: run `scripts/check-mods.sh` (exits non-zero
+   on drift between `minecraft/mods/` and `manifest/mods.tsv`), regenerate with
+   `scripts/generate-manifest.sh` rather than hand-editing any TSV, and confirm
+   a re-run produces no diff. Verify pinned versions, hashes,
+   dependency/load-order rules, client/server inclusion, JSON, and shell
+   syntax.
 3. Test pack changes with fresh, isolated NeoForge 1.21.1 dedicated-server and
    client instances. Run cross-mod connection, world creation/load, restart,
    upgrade, and representative gameplay smoke tests; inspect player-visible

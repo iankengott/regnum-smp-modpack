@@ -1,0 +1,43 @@
+# Whitelist-only. This directory is a live 3+ GB Prism Launcher instance; the
+# repo tracks the reproducible parts of the pack (configs, manifests, docs) and
+# nothing else. Everything is ignored by default and re-included explicitly.
+/*
+!/.gitignore
+!/.packignore
+!/AGENTS.md
+!/README.md
+!/LICENSE
+!/mmc-pack.json
+!/regnum_server_custom_config_notes.md
+!/docs/
+!/manifest/
+!/scripts/
+
+# --- minecraft/ ---
+# Ignored wholesale, then re-included path by path.
+!/minecraft/
+/minecraft/*
+!/minecraft/config/
+!/minecraft/defaultconfigs/
+
+# Machine-local: instance.cfg pins an absolute /nix/store Java path and this
+# machine's memory settings, so it must not be synced between installs.
+# Required settings are documented in README.md.
+
+# Third-party artifacts are never committed — mod jars, resource packs, shader
+# packs, and datapack zips are redistributable only under their own licenses.
+# They are recorded in manifest/ by name, size, and hash instead.
+
+# Caches and per-run state that some mods drop inside config/.
+minecraft/config/**/*cache*/
+minecraft/config/**/*.log
+minecraft/config/**/*.log.gz
+minecraft/config/**/*.dat_old
+minecraft/config/**/search_index/
+minecraft/config/**/*.lock
+# Machine fingerprint Sodium regenerates per install.
+minecraft/config/sodium-fingerprint.json
+# Holds the Resourceful Config web UI password.
+minecraft/config/resourceful-config-web.json
+# Per-user Xaero Patreon key.
+minecraft/config/xaeropatreon.txt
