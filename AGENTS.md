@@ -24,7 +24,7 @@ combinations that do not yet exist.
 ## Current checkpoint
 
 As of 2026-08-20, the repository tracks the live pack's configuration and
-manifests, generated from the main PC's working instance: 268 mods, 7 resource
+manifests, generated from the main PC's working instance: 267 mods, 7 resource
 packs, 1 shader pack, and 2 datapacks, on Minecraft 1.21.1 / NeoForge 21.1.248.
 Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
 configured to resume after restarts. LambDynamicLights 4.8.10 is installed only

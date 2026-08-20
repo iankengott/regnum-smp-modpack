@@ -29,7 +29,7 @@ sync. Treat `main` accordingly.
 | `scripts/` | Manifest generation, drift checking, and instance sync |
 | `regnum_server_custom_config_notes.md` | Server-side Distant Horizons / Chunky notes |
 
-Current tracked inventory: 268 mods, 7 resource packs, 1 shader pack, and 2
+Current tracked inventory: 267 mods, 7 resource packs, 1 shader pack, and 2
 datapacks on Minecraft 1.21.1 / NeoForge 21.1.248.
 
 ## What is not in git, and why
@@ -99,10 +99,10 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   `lambdynamiclights-api-*` or `lambdynamiclights-runtime-*` beside it;
   `scripts/check-mods.sh` rejects that duplicate-module layout.
 - `manifest/server-side-overrides.txt` corrects reviewed Modrinth side metadata.
-  Swinging Lanterns 1.5.0.1 must load on both sides because its NeoForge jar
-  registers a required login payload, despite the project page calling it
-  client-only. Azulc's Mob Statues remains client-only because its jar loads a
-  rendering class on dedicated servers.
+  Azulc's Mob Statues remains client-only because its jar loads a rendering
+  class on dedicated servers. Swinging Lanterns 1.5.0.1 was removed because its
+  lazy lantern block-entity creation infinitely recurses with Data Anchor
+  2.0.0.16 while loading chunks containing hanging lanterns.
 
 ## Subscribing a client
 
