@@ -27,8 +27,10 @@ write_manifest() {
         return
     fi
     # -print0/-d '' so filenames with spaces survive; sort for a stable diff.
+    # Pin collation so regeneration is identical when an agent shell uses C
+    # while the desktop session uses en_US.UTF-8.
     find "$mc/$dir" -maxdepth 1 -type f -name "$pattern" -print0 |
-        sort -z |
+        LC_ALL=en_US.UTF-8 sort -z |
         while IFS= read -r -d '' f; do
             printf '%s\t%s\t%s\n' \
                 "$(basename "$f")" \

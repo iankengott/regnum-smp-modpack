@@ -70,6 +70,23 @@ git add -A && git commit -m "..." && git push
 `generate-manifest.sh` is the only way `manifest/` should ever change; do not
 hand-edit the TSVs.
 
+To add a mod from Modrinth, install an exact version ID into the live instance
+and regenerate the manifest in one verified step:
+
+```bash
+scripts/install-modrinth-mod.sh MODRINTH_VERSION_ID
+```
+
+The installer rejects versions that do not list Minecraft 1.21.1 and NeoForge,
+checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
+
+## Pack customizations
+
+- Chunky 1.4.23 is included for operator-controlled chunk pregeneration. It
+  remains idle until an operator starts a task. `minecraft/config/chunky/config.json`
+  resumes saved tasks after a restart and limits progress messages to one every
+  five seconds.
+
 ## Subscribing a client
 
 A second machine clones into a fresh Prism instance directory, supplies its own

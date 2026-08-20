@@ -24,10 +24,12 @@ combinations that do not yet exist.
 ## Current checkpoint
 
 As of 2026-08-20, the repository tracks the live pack's configuration and
-manifests, generated from the main PC's working instance: 269 mods, 7 resource
+manifests, generated from the main PC's working instance: 270 mods, 7 resource
 packs, 1 shader pack, and 2 datapacks, on Minecraft 1.21.1 / NeoForge 21.1.248.
-The mod list is what is installed, not an approved list — approval, a
-compatibility matrix, and a reproducible release artifact are still open.
+Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
+configured to resume after restarts. The mod list is what is installed, not an
+approved list — approval, a compatibility matrix, and a reproducible release
+artifact are still open.
 
 ## Subagent collaboration
 
