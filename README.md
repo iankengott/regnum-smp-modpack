@@ -29,6 +29,9 @@ sync. Treat `main` accordingly.
 | `scripts/` | Manifest generation, drift checking, and instance sync |
 | `regnum_server_custom_config_notes.md` | Server-side Distant Horizons / Chunky notes |
 
+Current tracked inventory: 268 mods, 7 resource packs, 1 shader pack, and 2
+datapacks on Minecraft 1.21.1 / NeoForge 21.1.248.
+
 ## What is not in git, and why
 
 The checkout is a live Prism Launcher instance directory, so most of what sits
@@ -63,7 +66,7 @@ hand, then commit from there.
 cd ~/.local/share/PrismLauncher/instances/1.21.1
 
 scripts/generate-manifest.sh   # after adding/removing/updating any jar or pack
-scripts/check-mods.sh          # do the jars on disk match manifest/mods.tsv?
+scripts/check-mods.sh          # manifest drift and known packaged-component conflicts
 git add -A && git commit -m "..." && git push
 ```
 
@@ -86,6 +89,10 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   remains idle until an operator starts a task. `minecraft/config/chunky/config.json`
   resumes saved tasks after a restart and limits progress messages to one every
   five seconds.
+- LambDynamicLights 4.8.10 uses the single primary Modrinth artifact
+  (`DZDOX6ps`). That jar embeds its API and NeoForge runtime. Do not install
+  `lambdynamiclights-api-*` or `lambdynamiclights-runtime-*` beside it;
+  `scripts/check-mods.sh` rejects that duplicate-module layout.
 
 ## Subscribing a client
 

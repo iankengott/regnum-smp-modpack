@@ -24,12 +24,14 @@ combinations that do not yet exist.
 ## Current checkpoint
 
 As of 2026-08-20, the repository tracks the live pack's configuration and
-manifests, generated from the main PC's working instance: 270 mods, 7 resource
+manifests, generated from the main PC's working instance: 268 mods, 7 resource
 packs, 1 shader pack, and 2 datapacks, on Minecraft 1.21.1 / NeoForge 21.1.248.
 Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
-configured to resume after restarts. The mod list is what is installed, not an
-approved list — approval, a compatibility matrix, and a reproducible release
-artifact are still open.
+configured to resume after restarts. LambDynamicLights 4.8.10 is installed only
+as its primary Modrinth jar; its embedded API and runtime must not also be
+placed in `minecraft/mods/`. The mod list is what is installed, not an approved
+list — approval, a compatibility matrix, and a reproducible release artifact
+are still open.
 
 ## Subagent collaboration
 
@@ -82,9 +84,10 @@ Use verification proportionate to the change. At the current scaffold stage:
 1. Check Markdown links and factual consistency, search for stale scaffold
    claims, and run `git diff --check`.
 2. For manifest or config changes: run `scripts/check-mods.sh` (exits non-zero
-   on drift between `minecraft/mods/` and `manifest/mods.tsv`), regenerate with
-   `scripts/generate-manifest.sh` rather than hand-editing any TSV, and confirm
-   a re-run produces no diff. Verify pinned versions, hashes,
+   on drift between `minecraft/mods/` and `manifest/mods.tsv`, or on known
+   packaged-component collisions), regenerate with `scripts/generate-manifest.sh`
+   rather than hand-editing any TSV, and confirm a re-run produces no diff.
+   Verify pinned versions, hashes,
    dependency/load-order rules, client/server inclusion, licenses and
    redistribution notices, JSON, and shell syntax.
 3. Test pack changes with fresh, isolated NeoForge 1.21.1 dedicated-server and

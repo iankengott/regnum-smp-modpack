@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Compare the jars actually present in minecraft/mods against manifest/mods.tsv.
+# Compare the jars actually present in minecraft/mods against manifest/mods.tsv
+# and reject known packaged-component collisions that prevent NeoForge startup.
 #
 # The repo carries no jars, so after a pull the manifest can list files this
 # machine does not have (or a different build of one). This reports the drift.
@@ -39,6 +40,22 @@ while IFS= read -r -d '' path; do
         drift=1
     fi
 done < <(find "$mods_dir" -maxdepth 1 -type f -name '*.jar' -print0)
+
+# The primary LambDynamicLights release already embeds its API and runtime.
+# Installing those internal component jars beside it creates duplicate Java
+# modules and aborts NeoForge before Minecraft can start.
+shopt -s nullglob
+lamb_full=("$mods_dir"/lambdynamiclights-[0-9]*.jar)
+lamb_components=(
+    "$mods_dir"/lambdynamiclights-api-*.jar
+    "$mods_dir"/lambdynamiclights-runtime-*.jar
+)
+if (( ${#lamb_full[@]} > 0 && ${#lamb_components[@]} > 0 )); then
+    for path in "${lamb_components[@]}"; do
+        echo "CONFLICT $(basename "$path") is already embedded in $(basename "${lamb_full[0]}")"
+    done
+    drift=1
+fi
 
 if (( drift )); then
     echo
