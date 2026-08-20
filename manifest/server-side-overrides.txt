@@ -1,0 +1,8 @@
+# filename fragment = client|server|both
+# Modrinth calls Swinging Lanterns client-only, but its NeoForge jar registers a
+# required play-to-client channel and executes dedicated-server login handling.
+swinginglanterns=both
+
+# Modrinth calls this server-required, but the jar loads BlockEntityRenderer on
+# a dedicated server and aborts mod loading. Verified 2026-08-20.
+morestatues=client

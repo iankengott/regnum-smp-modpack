@@ -13,6 +13,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mc="$repo_root/minecraft"
 out="$repo_root/manifest"
+effective_mods="$repo_root/scripts/effective-mod-jars.py"
 mkdir -p "$out"
 
 # Write one TSV per artifact directory: name, bytes, sha256.
@@ -22,15 +23,23 @@ write_manifest() {
     # assigning any of them, so $name is not yet set on the line above.
     local target="$out/$name.tsv"
     printf 'file\tbytes\tsha256\n' >"$target"
-    if [[ ! -d "$mc/$dir" ]]; then
+    if [[ "$name" != "mods" && ! -d "$mc/$dir" ]]; then
         echo "  $name: no $dir/ directory, wrote header only"
         return
     fi
     # -print0/-d '' so filenames with spaces survive; sort for a stable diff.
     # Pin collation so regeneration is identical when an agent shell uses C
     # while the desktop session uses en_US.UTF-8.
-    find "$mc/$dir" -maxdepth 1 -type f -name "$pattern" -print0 |
-        LC_ALL=en_US.UTF-8 sort -z |
+    {
+        if [[ "$name" == "mods" ]]; then
+            # The resolver already sorts by filename; sorting its absolute paths
+            # would group the AutoModpack overlay separately from mods/.
+            "$effective_mods" --instance "$repo_root"
+        else
+            find "$mc/$dir" -maxdepth 1 -type f -name "$pattern" -print0 |
+                LC_ALL=en_US.UTF-8 sort -z
+        fi
+    } |
         while IFS= read -r -d '' f; do
             printf '%s\t%s\t%s\n' \
                 "$(basename "$f")" \

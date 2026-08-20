@@ -90,6 +90,10 @@ Use verification proportionate to the change. At the current scaffold stage:
    Verify pinned versions, hashes,
    dependency/load-order rules, client/server inclusion, licenses and
    redistribution notices, JSON, and shell syntax.
+   Treat the selected AutoModpack overlay plus `minecraft/mods/` as the
+   effective client mod set; `scripts/effective-mod-jars.py` is the shared
+   resolver. Keep reviewed side corrections in
+   `manifest/server-side-overrides.txt`.
 3. Test pack changes with fresh, isolated NeoForge 1.21.1 dedicated-server and
    client instances. Run cross-mod connection, world creation/load, restart,
    upgrade, and representative gameplay smoke tests; inspect player-visible

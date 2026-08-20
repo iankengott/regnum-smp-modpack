@@ -24,7 +24,7 @@ sync. Treat `main` accordingly.
 |---|---|
 | `minecraft/config/` | Every mod's configuration — the substance of the pack |
 | `minecraft/defaultconfigs/` | Per-world config defaults |
-| `manifest/` | Mod, resource pack, shader pack, datapack, and loader inventories |
+| `manifest/` | Artifact inventories and reviewed client/server side overrides |
 | `mmc-pack.json` | Minecraft, NeoForge, and LWJGL versions |
 | `scripts/` | Manifest generation, drift checking, and instance sync |
 | `regnum_server_custom_config_notes.md` | Server-side Distant Horizons / Chunky notes |
@@ -73,6 +73,11 @@ git add -A && git commit -m "..." && git push
 `generate-manifest.sh` is the only way `manifest/` should ever change; do not
 hand-edit the TSVs.
 
+The effective mod set is the union of `minecraft/mods/` and the selected
+AutoModpack overlay. `scripts/effective-mod-jars.py` resolves that union,
+deduplicates identical filenames, and rejects conflicting copies. Manifest
+generation, drift checking, and the server pack builder all use that same view.
+
 To add a mod from Modrinth, install an exact version ID into the live instance
 and regenerate the manifest in one verified step:
 
@@ -93,6 +98,11 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   (`DZDOX6ps`). That jar embeds its API and NeoForge runtime. Do not install
   `lambdynamiclights-api-*` or `lambdynamiclights-runtime-*` beside it;
   `scripts/check-mods.sh` rejects that duplicate-module layout.
+- `manifest/server-side-overrides.txt` corrects reviewed Modrinth side metadata.
+  Swinging Lanterns 1.5.0.1 must load on both sides because its NeoForge jar
+  registers a required login payload, despite the project page calling it
+  client-only. Azulc's Mob Statues remains client-only because its jar loads a
+  rendering class on dedicated servers.
 
 ## Subscribing a client
 
