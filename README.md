@@ -9,6 +9,15 @@ Repository: [iankengott/regnum-smp-modpack](https://github.com/iankengott/regnum
 live server runs, and every subscribed client pulls the change on its next
 sync. Treat `main` accordingly.
 
+## Owns
+
+- The approved NeoForge 1.21.1 mod list and reproducible server/client pack.
+- MineColonies and other third-party dependency selection.
+- Veil/shader/Create compatibility, performance profiles, and pack-level
+  configuration.
+- WATUT/Requiem replacement or port decisions, release archives, and install docs.
+- Cross-mod integration testing for the Regnum suite.
+
 ## Layout
 
 | Path | Contents |
@@ -93,5 +102,16 @@ Gameplay code remains in its owning repositories:
 [Progression](https://github.com/iankengott/regnum-progression),
 [World/Story](https://github.com/iankengott/regnum-world-story), and
 [Administration](https://github.com/iankengott/regnum-administration).
+
+## Planned rendering dependency
+
+[FoundryMC Veil](https://github.com/FoundryMC/Veil) is approved as
+Vector-Regnum's optional client rendering foundation after its NeoForge port.
+It is not in a manifest yet. Before inclusion, select and pin the exact tested
+Minecraft 1.21.1 version, verify its LGPL-3.0 redistribution obligations and
+transitive licenses, classify every artifact as client/common/server, and test
+Veil present and absent with the supported shader, renderer, Create, and Regnum
+suite combinations. Dedicated servers and mandatory gameplay telegraphs must
+remain functional without client rendering classes.
 
 The pack is announced on the [Regnum Hub](https://iankengott.github.io/regnum-hub/).

@@ -65,6 +65,8 @@ This repository owns the approved NeoForge 1.21.1 mod manifest, reproducible
 client/server pack, third-party dependency selection, pack-level configuration,
 compatibility matrix, performance profiles, release archives, and install
 documentation. It also owns cross-mod integration testing for the Regnum suite.
+That matrix includes Vector-Regnum's optional Veil client backend, shaderpacks,
+other renderer replacements, Create, and Veil-absent fallback behavior.
 
 Gameplay code remains in its owning repositories: Vector-Regnum, Origins,
 Combat, Progression, World/Story, and Administration. Do not patch around an
@@ -81,8 +83,8 @@ Use verification proportionate to the change. At the current scaffold stage:
    on drift between `minecraft/mods/` and `manifest/mods.tsv`), regenerate with
    `scripts/generate-manifest.sh` rather than hand-editing any TSV, and confirm
    a re-run produces no diff. Verify pinned versions, hashes,
-   dependency/load-order rules, client/server inclusion, JSON, and shell
-   syntax.
+   dependency/load-order rules, client/server inclusion, licenses and
+   redistribution notices, JSON, and shell syntax.
 3. Test pack changes with fresh, isolated NeoForge 1.21.1 dedicated-server and
    client instances. Run cross-mod connection, world creation/load, restart,
    upgrade, and representative gameplay smoke tests; inspect player-visible
@@ -107,6 +109,10 @@ Documentation-only changes do not require launching Minecraft.
   rollback guidance, and testing against a copied world—not production data.
 - Compatibility claims name exact tested versions and evidence. Untested
   combinations are clearly marked unsupported or experimental.
+- Veil remains an optional client enhancement for Vector-Regnum. Test it
+  present and absent, post-processing enabled and disabled, resource reload,
+  supported shader/renderer combinations, Create, accessibility profiles, and
+  a dedicated server that never loads Veil client classes.
 - Required licenses and redistribution permissions are verified before any
   third-party mod or asset is included in a release.
 - Secrets, personal tokens, server credentials, player data, live addresses,
