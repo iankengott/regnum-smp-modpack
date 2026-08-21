@@ -131,12 +131,12 @@ send_and_wait() {
 }
 
 query_tasks() {
-    local start_line output elapsed=0
+    local start_line output elapsed=0 timeout=60
     require_server_live
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
     tmux send-keys -t "=$SESSION:" "chunky progress" Enter
     tmux send-keys -t "=$SESSION:" "dh pregen status" Enter
-    while (( elapsed < 20 )); do
+    while (( elapsed < timeout )); do
         output=$(tail -n "+$((start_line + 1))" "$MC_ROOT/logs/latest.log" 2>/dev/null || true)
         if grep -Eq '\[Chunky\].*(No tasks running|Task running)' <<<"$output" &&
            grep -Eq '(Pregen is not running|Generated radius:)' <<<"$output"; then
