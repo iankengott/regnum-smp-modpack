@@ -138,6 +138,9 @@ to re-enable DH and run `dh pregen` with the same center and chunk radius.
 
 The operation is resumable. Run `prepare-paralon-world.sh status` at any time.
 Run `prepare-paralon-world.sh rollback` to restore the retained prior world.
+After a server restart, the controller allows up to five minutes for both
+pregeneration status replies because WorldEdit can delay the first console
+commands while it builds its block-state map.
 The wizard preserves Paralon's terrain and mature trees; it does not invoke the
 installed chunk-regeneration tool or attempt unsafe bulk tree conversion.
 

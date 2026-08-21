@@ -33,6 +33,9 @@ Run the wizard on Hermes inside its own tmux session. The map directory must be
 beneath `~/regnum/incoming/` and directly contain `level.dat` and `region/`.
 The controller refuses the live world as input, refuses a radius that does not
 cover the imported region files, and refuses foreign holders of port 25566.
+Post-restart task checks allow five minutes for both replies. WorldEdit may
+delay the first console commands while it builds its block-state map even
+after the server has logged `Done (`.
 
 Before swapping worlds, it requires both pregenerators to be idle, copies the
 source into staging, stops Regnum cleanly, writes a compressed backup under

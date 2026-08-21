@@ -33,6 +33,8 @@ require the matching `scripts/check-dh-chunky.sh` phase to pass.
 `scripts/prepare-paralon-world.sh` and its wizard apply that invariant to the
 Hermes world cutover, derive coverage from the imported region files, and
 retain both backup and rollback paths.
+The controller gives post-restart pregeneration status commands five minutes
+to answer because WorldEdit can keep the server thread busy after `Done (`.
 LambDynamicLights 4.8.10 is installed only
 as its primary Modrinth jar; its embedded API and runtime must not also be
 placed in `minecraft/mods/`. The mod list is what is installed, not an approved

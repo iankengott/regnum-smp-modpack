@@ -109,12 +109,13 @@ require_server_live() {
 
 wait_for_log() {
     local start_line="$1" expression="$2" timeout="${3:-20}" elapsed=0 output
-    while (( elapsed < timeout )); do
+    while true; do
         output=$(tail -n "+$((start_line + 1))" "$MC_ROOT/logs/latest.log" 2>/dev/null || true)
         if grep -Eq "$expression" <<<"$output"; then
             printf '%s\n' "$output"
             return 0
         fi
+        (( elapsed >= timeout )) && break
         sleep 1
         elapsed=$((elapsed + 1))
     done
@@ -130,24 +131,35 @@ send_and_wait() {
     wait_for_log "$start_line" "$expression" "$timeout"
 }
 
-query_tasks() {
-    local start_line output elapsed=0 timeout=60
-    require_server_live
-    start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "=$SESSION:" "chunky progress" Enter
-    tmux send-keys -t "=$SESSION:" "dh pregen status" Enter
-    while (( elapsed < timeout )); do
+task_output_complete() {
+    local output="$1"
+    grep -Eq '\[Chunky\].*(No tasks running|Task running)' <<<"$output" &&
+        grep -Eq '(Pregen is not running|Generated radius:)' <<<"$output"
+}
+
+wait_for_task_output() {
+    local start_line="$1" timeout="$2" output elapsed=0
+    while true; do
         output=$(tail -n "+$((start_line + 1))" "$MC_ROOT/logs/latest.log" 2>/dev/null || true)
-        if grep -Eq '\[Chunky\].*(No tasks running|Task running)' <<<"$output" &&
-           grep -Eq '(Pregen is not running|Generated radius:)' <<<"$output"; then
+        if task_output_complete "$output"; then
             TASK_OUTPUT="$output"
             return 0
         fi
+        (( elapsed >= timeout )) && break
         sleep 1
         elapsed=$((elapsed + 1))
     done
     TASK_OUTPUT="$output"
     return 1
+}
+
+query_tasks() {
+    local start_line
+    require_server_live
+    start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
+    tmux send-keys -t "=$SESSION:" "chunky progress" Enter
+    tmux send-keys -t "=$SESSION:" "dh pregen status" Enter
+    wait_for_task_output "$start_line" 300
 }
 
 require_tasks_idle() {
@@ -876,7 +888,7 @@ show_status() {
 
 self_test() {
     local root json toml fake_world output output_again config_hash backup_source backup_archive
-    local original_session tmux_prefix
+    local original_mc_root original_session task_query_test_log task_query_test_ticks tmux_prefix
     root=$(mktemp -d /tmp/prepare-paralon-test.XXXXXX)
     json="$root/config.json"
     toml="$root/config.toml"
@@ -921,6 +933,32 @@ PY
         die "backup regression fixture did not reproduce the early-exit pipe failure"
     fi
     verify_world_backup "$backup_archive"
+    original_mc_root="$MC_ROOT"
+    MC_ROOT="$root/server"
+    mkdir -p "$MC_ROOT/logs"
+    task_query_test_log="$MC_ROOT/logs/latest.log"
+    : > "$task_query_test_log"
+    task_query_test_ticks=0
+    sleep() {
+        task_query_test_ticks=$((task_query_test_ticks + 1))
+        if (( task_query_test_ticks == 1 )); then
+            printf '%s\n' '[Chunky] No tasks running.' 'Pregen is not running' >> "$task_query_test_log"
+        fi
+    }
+    wait_for_task_output 0 1 || die "task query missed replies written at the timeout boundary"
+    task_output_complete "$TASK_OUTPUT"
+    : > "$task_query_test_log"
+    task_query_test_ticks=0
+    sleep() {
+        task_query_test_ticks=$((task_query_test_ticks + 1))
+        if (( task_query_test_ticks == 61 )); then
+            printf '%s\n' '[Chunky] No tasks running.' 'Pregen is not running' >> "$task_query_test_log"
+        fi
+    }
+    wait_for_task_output 0 300 || die "task query rejected replies delayed beyond 60 seconds"
+    (( task_query_test_ticks == 61 ))
+    unset -f sleep
+    MC_ROOT="$original_mc_root"
     require_command tmux
     original_session="$SESSION"
     tmux_prefix="paralon-selftest-$$-$RANDOM"
@@ -940,7 +978,7 @@ PY
     tmux kill-session -t "=${tmux_prefix}-wizard"
     SESSION="$original_session"
     case "$root" in /tmp/prepare-paralon-test.*) rm -r -- "$root" ;; *) die "unsafe self-test directory" ;; esac
-    echo "PASS: idempotent config mutation, map inspection, backup verification, and exact tmux targeting"
+    echo "PASS: idempotent config mutation, map inspection, backup verification, deadline-safe task queries, and exact tmux targeting"
 }
 
 action="${1:-status}"
