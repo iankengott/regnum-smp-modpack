@@ -389,14 +389,28 @@ create_world_backup() {
     if command -v zstd >/dev/null 2>&1; then
         output="$backup_dir/regnum_before_paralon_${stamp}.tar.zst"
         tar -C "$MC_ROOT" -I 'zstd -3 -T0' -cf "$output" world
-        tar -I zstd -tf "$output" | grep -qx 'world/level.dat'
     else
         output="$backup_dir/regnum_before_paralon_${stamp}.tar.gz"
         tar -C "$MC_ROOT" -czf "$output" world
-        tar -tzf "$output" | grep -qx 'world/level.dat'
     fi
+    verify_world_backup "$output"
     state_set backup_archive "$output"
     printf '%s\n' "$output"
+}
+
+verify_world_backup() {
+    local archive="$1"
+    if [[ "$archive" == *.tar.zst ]]; then
+        tar -I zstd -tf "$archive"
+    elif [[ "$archive" == *.tar.gz ]]; then
+        tar -tzf "$archive"
+    else
+        die "unsupported world backup format: $archive"
+        return 1
+    fi | awk '$0 == "world/level.dat" { found=1 } END { exit(found ? 0 : 1) }' || {
+        die "world backup is unreadable or missing world/level.dat: $archive"
+        return 1
+    }
 }
 
 preserve_world_owned_data() {
@@ -423,7 +437,7 @@ preserve_world_owned_data() {
 recover_install_failure() {
     local line="$1" rollback failed
     trap - ERR
-    set +e
+    set -e
     printf '\nFAIL: Paralon installation failed at line %s; restoring the prior world.\n' "$line" >&2
     rollback=$(state_get rollback_world)
     if [[ -n "$rollback" && -d "$rollback" ]]; then
@@ -436,7 +450,9 @@ recover_install_failure() {
         mv "$rollback" "$MC_ROOT/world"
         state_set phase install-rolled-back
     fi
-    server_is_live || start_server
+    if ! server_is_live; then
+        start_server
+    fi
     exit 1
 }
 
@@ -777,7 +793,7 @@ show_status() {
 }
 
 self_test() {
-    local root json toml fake_world output output_again config_hash
+    local root json toml fake_world output output_again config_hash backup_source backup_archive
     root=$(mktemp -d /tmp/prepare-paralon-test.XXXXXX)
     json="$root/config.json"
     toml="$root/config.toml"
@@ -807,8 +823,23 @@ PY
     grep -q '^REGION_COUNT=2$' <<<"$output"
     grep -q '^ALLOCATED_CHUNKS=2$' <<<"$output"
     grep -q '^MIN_RADIUS_CHUNKS=' <<<"$output"
+    backup_source="$root/backup-source"
+    backup_archive="$root/backup.tar.gz"
+    mkdir -p "$backup_source/world/region"
+    printf 'backup-level' > "$backup_source/world/level.dat"
+    python3 - "$backup_source/world/region" <<'PY'
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+for index in range(4096):
+    root.joinpath(f"payload-{index:04d}-{'x' * 64}").touch()
+PY
+    tar -C "$backup_source" -czf "$backup_archive" world/level.dat world/region
+    if (set -o pipefail; tar -tzf "$backup_archive" | grep -qx 'world/level.dat'); then
+        die "backup regression fixture did not reproduce the early-exit pipe failure"
+    fi
+    verify_world_backup "$backup_archive"
     case "$root" in /tmp/prepare-paralon-test.*) rm -r -- "$root" ;; *) die "unsafe self-test directory" ;; esac
-    echo "PASS: idempotent config mutation and map-boundary inspection"
+    echo "PASS: idempotent config mutation, map-boundary inspection, and full backup verification"
 }
 
 action="${1:-status}"
