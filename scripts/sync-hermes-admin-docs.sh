@@ -25,6 +25,7 @@ files=(
     README.md
     regnum_server_custom_config_notes.md
     scripts/check-dh-chunky.sh
+    scripts/sync-hermes-admin-docs.sh
 )
 
 for file in "${files[@]}"; do
@@ -48,6 +49,11 @@ commit="$(git -C "$repo_root" rev-parse HEAD)"
     echo "FAIL: could not resolve the source commit" >&2
     exit 1
 }
+remote_commit="$(git -C "$repo_root" ls-remote origin refs/heads/main | awk '{print $1}')"
+[[ "$remote_commit" == "$commit" ]] || {
+    echo "FAIL: local HEAD $commit does not match GitHub main ${remote_commit:-<missing>}" >&2
+    exit 1
+}
 
 remote_admin="$remote_dir/admin"
 ssh -o BatchMode=yes "$server" "mkdir -p \"\$HOME/$remote_admin/scripts\""
@@ -55,7 +61,9 @@ rsync -a --checksum \
     "$repo_root/README.md" \
     "$repo_root/regnum_server_custom_config_notes.md" \
     "$server:~/$remote_admin/"
-rsync -a --checksum "$repo_root/scripts/check-dh-chunky.sh" \
+rsync -a --checksum \
+    "$repo_root/scripts/check-dh-chunky.sh" \
+    "$repo_root/scripts/sync-hermes-admin-docs.sh" \
     "$server:~/$remote_admin/scripts/"
 ssh -o BatchMode=yes "$server" \
     "printf '%s\\n' '$commit' > \"\$HOME/$remote_admin/SOURCE_COMMIT\""
