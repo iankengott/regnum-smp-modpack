@@ -23,9 +23,10 @@ combinations that do not yet exist.
 
 ## Current checkpoint
 
-As of 2026-08-20, the repository tracks the live pack's configuration and
-manifests, generated from the main PC's working instance: 267 mods, 7 resource
-packs, 1 shader pack, and 2 datapacks, on Minecraft 1.21.1 / NeoForge 21.1.248.
+As of 2026-08-21, the repository tracks the live pack's configuration and
+manifests, generated from the main PC's working instance: 271 mods, 224 server
+mods, 47 client-only mods, 7 resource packs, 1 shader pack, and 2 datapacks, on
+Minecraft 1.21.1 / NeoForge 21.1.248.
 Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
 configured to resume after restarts. Before changing Distant Horizons or
 starting either pre-generator, read `regnum_server_custom_config_notes.md` and
@@ -48,9 +49,10 @@ are still open.
 Treasure Level Mobs 1.1.4 is customized by the tracked
 `scripts/patch-treasurelevelmobs.sh` lever. It is derived from unmodified
 SHA-256 `c01d8f946367d4a925cc62f246199b052dd5a39d6609f70a5978cefeabcaf0f3`,
-slows only the existing distance contribution to one tenth, caps levels at
-100 by 30,000 Manhattan blocks from spawn, and includes a tick-time migration
-for saved high-level mobs. Do not patch a different upstream build without
+uses the map center `(13013.5, 84, 8136.5)`, slows the existing distance
+contribution to one tenth, caps levels at 100 by 10,000 Manhattan blocks from
+that center, and includes a tick-time migration for saved high-level mobs. Do
+not patch a different upstream build without
 updating the SHA guard and rechecking the bytecode anchors.
 
 ## Subagent collaboration

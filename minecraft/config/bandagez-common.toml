@@ -1,0 +1,99 @@
+[fractured]
+	#Extra damage multiplier for fall damage when player has bone fracture effect
+	extraFallDamageMultiplier = 1.5
+
+	[fractured.chance]
+		#Chance for bone fracture to occur from fall damage, %
+		fractureOnFallChance = 20
+		#Chance for bone fracture to occur from falling_stalactite, %
+		falling_stalactite = 20
+		#Chance for bone fracture to occur from explosion, %
+		explosion = 20
+
+		[fractured.chance.entity]
+			#Chance for bone fracture to occur from zombie, %
+			zombie = 10
+			#Chance for bone fracture to occur from zombified_piglin, %
+			zombified_piglin = 30
+			#Chance for bone fracture to occur from wither_skeleton, %
+			wither_skeleton = 20
+			#Chance for bone fracture to occur from polar_bear, %
+			polar_bear = 30
+
+	[bleeding.chance]
+		#Chance for bleeding to occur when sprinting with fresh bandage, %
+		freshBandageBleedingChance = 20
+		#Chance for bleeding to occur from falling_stalactite, %
+		falling_stalactite = 50
+		#Chance for bleeding to occur from explosion, %
+		explosion = 20
+		#Chance for bleeding to occur from sweet_berry_bush, %
+		sweet_berry_bush = 10
+		#Chance for bleeding to occur from arrow, %
+		arrow = 50
+		#Chance for bleeding to occur from trident, %
+		trident = 60
+		#Chance for bleeding to occur from thorns, %
+		thorns = 30
+		#Chance for bleeding to occur from stalagmite, %
+		stalagmite = 50
+		#Chance for bleeding to occur from cactus, %
+		cactus = 20
+
+		[bleeding.chance.entity]
+			#Chance for bleeding to occur from spider, %
+			spider = 20
+			#Chance for bleeding to occur from pillager, %
+			pillager = 20
+			#Chance for bleeding to occur from zoglin, %
+			zoglin = 30
+			#Chance for bleeding to occur from zombie_villager, %
+			zombie_villager = 30
+			#Chance for bleeding to occur from cave_spider, %
+			cave_spider = 20
+			#Chance for bleeding to occur from polar_bear, %
+			polar_bear = 20
+			#Chance for bleeding to occur from piglin, %
+			piglin = 20
+			#Chance for bleeding to occur from enderman, %
+			enderman = 20
+			#Chance for bleeding to occur from zombified_piglin, %
+			zombified_piglin = 20
+			#Chance for bleeding to occur from piglin_brute, %
+			piglin_brute = 20
+			#Chance for bleeding to occur from wither_skeleton, %
+			wither_skeleton = 20
+			#Chance for bleeding to occur from zombie, %
+			zombie = 30
+
+	[hardBleeding.chance]
+		#Chance for hard bleeding to occur from arrow, %
+		arrow = 20
+		#Chance for hard bleeding to occur from trident, %
+		trident = 40
+		#Chance for hard bleeding to occur from explosion, %
+		explosion = 10
+		#Chance for hard bleeding to occur from stalagmite, %
+		stalagmite = 10
+		#Chance for hard bleeding to occur from falling_stalactite, %
+		falling_stalactite = 10
+
+		[hardBleeding.chance.entity]
+			#Chance for hard bleeding to occur from zombie, %
+			zombie = 10
+			#Chance for hard bleeding to occur from zombified_piglin, %
+			zombified_piglin = 10
+			#Chance for hard bleeding to occur from wither_skeleton, %
+			wither_skeleton = 20
+			#Chance for hard bleeding to occur from polar_bear, %
+			polar_bear = 20
+			#Chance for hard bleeding to occur from spider, %
+			spider = 10
+			#Chance for hard bleeding to occur from pillager, %
+			pillager = 10
+			#Chance for hard bleeding to occur from piglin_brute, %
+			piglin_brute = 10
+			#Chance for hard bleeding to occur from cave_spider, %
+			cave_spider = 10
+			#Chance for hard bleeding to occur from piglin, %
+			piglin = 10

@@ -25,6 +25,7 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 /** Deterministically patches the exact Treasure Level Mobs build used by Regnum. */
@@ -38,7 +39,10 @@ public final class PatchTreasureLevelMobs {
     private static final String EXECUTE_DESCRIPTOR =
         "(Lnet/neoforged/bus/api/Event;Lnet/minecraft/world/level/LevelAccessor;DDDLnet/minecraft/world/entity/Entity;)V";
     private static final String COMPOUND_TAG = "net/minecraft/nbt/CompoundTag";
+    private static final String LEVEL_DATA = "net/minecraft/world/level/storage/LevelData";
+    private static final String BLOCK_POS = "net/minecraft/core/BlockPos";
     private static final String HELPER = "treasurelevelmobs/patch/RegnumLevelCap";
+    private static final String WORLD_CENTER_DESC = "(Ljava/lang/Object;)Ljava/lang/Object;";
 
     private PatchTreasureLevelMobs() {
     }
@@ -114,6 +118,11 @@ public final class PatchTreasureLevelMobs {
         ClassNode node = readClass(original);
         MethodNode method = findExecute(node);
 
+        int centerReplacements = replaceSpawnCenter(method);
+        if (centerReplacements != 2) {
+            throw new IOException("expected two world-spawn center calls, got " + centerReplacements);
+        }
+
         int divisorReplacements = 0;
         for (AbstractInsnNode instruction : method.instructions) {
             if (instruction instanceof LdcInsnNode) {
@@ -136,6 +145,31 @@ public final class PatchTreasureLevelMobs {
         method.instructions.insert(levelWrites.get(0), capCall());
         method.instructions.insert(levelWrites.get(levelWrites.size() - 1), capCall());
         return writeClass(node);
+    }
+
+    /** Replaces the generated procedure's spawn-relative distance center with the map center. */
+    private static int replaceSpawnCenter(MethodNode method) {
+        int replacements = 0;
+        for (AbstractInsnNode instruction = method.instructions.getFirst();
+             instruction != null; instruction = instruction.getNext()) {
+            if (!(instruction instanceof MethodInsnNode)) {
+                continue;
+            }
+            MethodInsnNode call = (MethodInsnNode) instruction;
+            if (!call.owner.equals(LEVEL_DATA)
+                || !call.name.equals("getSpawnPos")
+                || !call.desc.equals("()L" + BLOCK_POS + ";")) {
+                continue;
+            }
+            call.setOpcode(Opcodes.INVOKESTATIC);
+            call.owner = HELPER;
+            call.name = "worldCenter";
+            call.desc = WORLD_CENTER_DESC;
+            call.itf = false;
+            method.instructions.insert(call, new TypeInsnNode(Opcodes.CHECKCAST, BLOCK_POS));
+            replacements++;
+        }
+        return replacements;
     }
 
     private static byte[] patchTick(byte[] original) throws IOException {

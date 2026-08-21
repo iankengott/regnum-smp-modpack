@@ -106,6 +106,7 @@
     "damage": {
       "enabled": true,
       "opacity": 1.0,
+      "bloodColor": -1303641598,
       "damaged": {
         "disabled": false,
         "opacity": 1.0,

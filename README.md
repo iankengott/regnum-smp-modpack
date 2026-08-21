@@ -29,8 +29,9 @@ sync. Treat `main` accordingly.
 | `scripts/` | Manifest generation, drift checking, and instance sync |
 | `regnum_server_custom_config_notes.md` | Server-side Distant Horizons / Chunky notes |
 
-Current tracked inventory: 267 mods, 7 resource packs, 1 shader pack, and 2
-datapacks on Minecraft 1.21.1 / NeoForge 21.1.248.
+Current tracked inventory: 271 mods, 224 server mods, 47 client-only mods, 7
+resource packs, 1 shader pack, and 2 datapacks on Minecraft 1.21.1 / NeoForge
+21.1.248.
 
 ## What is not in git, and why
 
@@ -98,10 +99,11 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   limits progress messages to one every five seconds.
 - Treasure Level Mobs 1.1.4 has a reproducible local patch in
   `scripts/patch-treasurelevelmobs.sh`. It keeps the mod's advancement, weather,
-  moon, biome, and difficulty inputs, changes only its distance divisor from
-  10,000 to 100,000, and caps the resulting level at
-  `min(100, max(1, floor(manhattan_blocks_from_spawn / 300)))`. The cap reaches
-  level 100 at 30,000 blocks. The patch also clamps the later Ender Dragon
+  moon, biome, and difficulty inputs, uses map center `(13013.5, 84, 8136.5)`,
+  changes only its distance divisor from 10,000 to 100,000, and caps the
+  resulting level at
+  `min(100, max(1, floor(manhattan_blocks_from_center / 100)))`. The cap
+  reaches level 100 at 10,000 blocks. The patch also clamps the later Ender Dragon
   override and migrates saved mobs when their chunks tick. The source jar must
   match the pinned unmodified SHA
   `c01d8f946367d4a925cc62f246199b052dd5a39d6609f70a5978cefeabcaf0f3` before

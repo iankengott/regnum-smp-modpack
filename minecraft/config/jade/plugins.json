@@ -52,11 +52,8 @@
     "painting": true,
     "chiseled_bookshelf": true
   },
-  "ars_nouveau": {
-    "mob_jar": true
-  },
-  "camerapture": {
-    "picture_frame": true
+  "apothic_spawners": {
+    "spawner": true
   },
   "jade_access": {
     "held_item": true,
@@ -65,11 +62,42 @@
     "entity": true,
     "entity_variant": true
   },
-  "create_mechanical_spawner": {
-    "data": true
-  },
   "oritech": {
     "machine_core_controller": true
+  },
+  "jade": {
+    "coordinates.rel": false,
+    "registry_name.special": false,
+    "block_states": false,
+    "distance": false,
+    "block_face": false,
+    "coordinates": false,
+    "registry_name": "OFF",
+    "block_properties": false,
+    "mod_name": true
+  },
+  "apotheosis": {
+    "adventure": true
+  },
+  "occultism": {
+    "foliot": true,
+    "sacrificial": true
+  },
+  "balm": {
+    "jade": true
+  },
+  "apothic_enchanting": {
+    "ench": true
+  },
+  "camerapture": {
+    "picture_frame": true
+  },
+  "exposure": {
+    "lightroom": true,
+    "photograph_frame": true
+  },
+  "create_mechanical_spawner": {
+    "data": true
   },
   "toms_storage": {
     "inventory_hopper": true,
@@ -85,21 +113,6 @@
     "fruit": true,
     "rooty": true,
     "branch": true
-  },
-  "jade": {
-    "coordinates.rel": false,
-    "registry_name.special": false,
-    "block_states": false,
-    "distance": false,
-    "block_face": false,
-    "coordinates": false,
-    "registry_name": "OFF",
-    "block_properties": false,
-    "mod_name": true
-  },
-  "occultism": {
-    "foliot": true,
-    "sacrificial": true
   },
   "corpse": {
     "corpse": true

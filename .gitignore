@@ -35,6 +35,14 @@ minecraft/config/**/*.log.gz
 minecraft/config/**/*.dat_old
 minecraft/config/**/search_index/
 minecraft/config/**/*.lock
+# Mod self-update payloads and generated backup/error snapshots are runtime
+# artifacts, not pack configuration. Keep the canonical config beside them.
+minecraft/config/**/*.jar
+minecraft/config/**/update/
+minecraft/config/**/*.bak
+minecraft/config/**/*-had-error.json5
+# This file is per-player state rather than a reproducible pack setting.
+minecraft/config/presencefootsteps/userconfig.json
 # Machine fingerprint Sodium regenerates per install.
 minecraft/config/sodium-fingerprint.json
 # Holds the Resourceful Config web UI password.

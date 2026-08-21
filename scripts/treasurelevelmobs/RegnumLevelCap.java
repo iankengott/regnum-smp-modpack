@@ -9,8 +9,13 @@ import java.util.concurrent.ConcurrentMap;
 /** Runtime helper bundled into the patched Treasure Level Mobs jar. */
 public final class RegnumLevelCap {
     public static final double MAX_LEVEL = 100.0;
-    public static final double BLOCKS_PER_LEVEL = 300.0;
+    public static final double BLOCKS_PER_LEVEL = 100.0;
     public static final double DISTANCE_DIVISOR = 100_000.0;
+    // The imported map's center. Distance is horizontal, so Y is retained
+    // only to document the complete center coordinate supplied by the map.
+    public static final double WORLD_CENTER_X = 13_013.5;
+    public static final double WORLD_CENTER_Y = 84.0;
+    public static final double WORLD_CENTER_Z = 8_136.5;
 
     private static final String LEVEL_KEY = "tlmobslevel";
     private static final String ATTRIBUTE_LEVEL_KEY = "regnum_tlmobs_attribute_level";
@@ -28,17 +33,48 @@ public final class RegnumLevelCap {
     };
 
     private static final ConcurrentMap<String, Method> METHOD_CACHE = new ConcurrentHashMap<>();
+    private static volatile Object WORLD_CENTER_BLOCK;
     private static volatile boolean warned;
 
     private RegnumLevelCap() {
     }
 
-    /** Converts Manhattan blocks from spawn into the allowed level. */
+    /** Converts Manhattan blocks from the map center into the allowed level. */
     public static double capForDistance(double blocks) {
         if (!Double.isFinite(blocks) || blocks < 0.0) {
             blocks = 0.0;
         }
         return Math.min(MAX_LEVEL, Math.max(1.0, Math.floor(blocks / BLOCKS_PER_LEVEL)));
+    }
+
+    /** Returns the Manhattan distance from the configured map center. */
+    public static double distanceFromWorldCenter(double x, double z) {
+        if (!Double.isFinite(x) || !Double.isFinite(z)) {
+            return 0.0;
+        }
+        return Math.abs(x - WORLD_CENTER_X) + Math.abs(z - WORLD_CENTER_Z);
+    }
+
+    /**
+     * Supplies a BlockPos approximation of the map center to the patched
+     * generated procedure. The authoritative level cap uses the exact double
+     * center above; this position only feeds the mod's legacy distance term.
+     * The ignored argument consumes the original LevelData receiver so the
+     * bytecode replacement remains stack-compatible without Minecraft on the
+     * patcher compile classpath.
+     */
+    public static Object worldCenter(Object ignored) throws Exception {
+        Object center = WORLD_CENTER_BLOCK;
+        if (center != null) {
+            return center;
+        }
+        Class<?> blockPos = Class.forName("net.minecraft.core.BlockPos");
+        Object resolved = blockPos.getConstructor(int.class, int.class, int.class)
+            .newInstance((int) Math.floor(WORLD_CENTER_X),
+                (int) Math.floor(WORLD_CENTER_Y),
+                (int) Math.floor(WORLD_CENTER_Z));
+        WORLD_CENTER_BLOCK = resolved;
+        return resolved;
     }
 
     /** Caps a newly generated level without changing the mod's progression inputs. */
@@ -103,14 +139,9 @@ public final class RegnumLevelCap {
     }
 
     private static double distanceCap(Object level, Object entity) throws Exception {
-        Object levelData = call(level, "getLevelData");
-        Object spawn = call(levelData, "getSpawnPos");
         double x = number(call(entity, "getX"));
         double z = number(call(entity, "getZ"));
-        double spawnX = number(call(spawn, "getX"));
-        double spawnZ = number(call(spawn, "getZ"));
-        double distance = Math.abs(x - spawnX) + Math.abs(z - spawnZ);
-        return capForDistance(distance);
+        return capForDistance(distanceFromWorldCenter(x, z));
     }
 
     private static boolean isClientSide(Object level) throws Exception {
