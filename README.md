@@ -118,6 +118,29 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   lazy lantern block-entity creation infinitely recurses with Data Anchor
   2.0.0.16 while loading chunks containing hanging lanterns.
 
+## Preparing the Paralon server world
+
+Paralon is not distributed with this repository. After placing an authorized,
+extracted edition beneath `~/regnum/incoming/` on Hermes, run the preparation
+wizard there inside a separate tmux session:
+
+```bash
+tmux new-session -s regnum-paralon
+~/regnum/admin/scripts/prepare-paralon-wizard.sh
+```
+
+The wizard calls `prepare-paralon-world.sh`, which inspects the real region-file
+boundary, requires an explicit player-data choice, backs up and replaces the
+current Regnum world, and sets a matching world border. It then runs Chunky and
+Distant Horizons sequentially. Chunky force-loads the premade chunks while DH
+generation is disabled. Only a verified Chunky completion permits the wizard
+to re-enable DH and run `dh pregen` with the same center and chunk radius.
+
+The operation is resumable. Run `prepare-paralon-world.sh status` at any time.
+Run `prepare-paralon-world.sh rollback` to restore the retained prior world.
+The wizard preserves Paralon's terrain and mature trees; it does not invoke the
+installed chunk-regeneration tool or attempt unsafe bulk tree conversion.
+
 ## Subscribing a client
 
 A second machine clones into a fresh Prism instance directory, supplies its own

@@ -30,6 +30,9 @@ Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
 configured to resume after restarts. Before changing Distant Horizons or
 starting either pre-generator, read `regnum_server_custom_config_notes.md` and
 require the matching `scripts/check-dh-chunky.sh` phase to pass.
+`scripts/prepare-paralon-world.sh` and its wizard apply that invariant to the
+Hermes world cutover, derive coverage from the imported region files, and
+retain both backup and rollback paths.
 LambDynamicLights 4.8.10 is installed only
 as its primary Modrinth jar; its embedded API and runtime must not also be
 placed in `minecraft/mods/`. The mod list is what is installed, not an approved

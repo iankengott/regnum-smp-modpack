@@ -20,6 +20,48 @@ state separately from work that an operator has not started.
 The earlier 625-chunk plan was never started. Do not report the 10,000-block
 area as generated until both stages finish and their output is checked.
 
+## Paralon replacement controller
+
+The Hermes admin directory includes two versioned scripts:
+
+- `scripts/prepare-paralon-wizard.sh` collects the authorized map directory,
+  exact edition, player-data choice, center, and radius.
+- `scripts/prepare-paralon-world.sh` performs the guarded server operations and
+  records a resumable phase under `~/regnum/paralon-prep/state/`.
+
+Run the wizard on Hermes inside its own tmux session. The map directory must be
+beneath `~/regnum/incoming/` and directly contain `level.dat` and `region/`.
+The controller refuses the live world as input, refuses a radius that does not
+cover the imported region files, and refuses foreign holders of port 25566.
+
+Before swapping worlds, it requires both pregenerators to be idle, copies the
+source into staging, stops Regnum cleanly, writes a compressed backup under
+`~/backups-worlds/`, and moves the current world to a retained rollback path.
+It preserves the server-owned `serverconfig` and requires an explicit choice to
+reset or preserve existing player data. The imported map and its mature trees
+remain as authored. The script never calls `/terrain reload`.
+
+The automated phases encode the required ordering:
+
+1. Install Paralon and set the world border from the confirmed map coverage.
+2. Set `enableDistantGeneration = false` and
+   `forceLoadExistingChunks = true`, then run Chunky over the selected circle.
+3. Require Chunky's `Task finished` marker. An idle task without that marker is
+   a failure, not success.
+4. Set `forceLoadExistingChunks = false`, re-enable DH, and run `dh pregen`
+   with the same center and radius in chunks.
+5. Require DH's `Pregen is complete` marker, restore the safe idle settings,
+   and require both status commands to report no task.
+
+Useful non-destructive command:
+
+```bash
+~/regnum/admin/scripts/prepare-paralon-world.sh status
+```
+
+The final human gate remains a real client inspection of outer-edge and
+interior LOD coverage before players join.
+
 ## Why the two stages must be separate
 
 Chunky saves complete Minecraft chunks. Distant Horizons builds a separate LOD

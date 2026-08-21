@@ -25,6 +25,8 @@ files=(
     README.md
     regnum_server_custom_config_notes.md
     scripts/check-dh-chunky.sh
+    scripts/prepare-paralon-world.sh
+    scripts/prepare-paralon-wizard.sh
     scripts/sync-hermes-admin-docs.sh
 )
 
@@ -63,6 +65,8 @@ rsync -a --checksum \
     "$server:~/$remote_admin/"
 rsync -a --checksum \
     "$repo_root/scripts/check-dh-chunky.sh" \
+    "$repo_root/scripts/prepare-paralon-world.sh" \
+    "$repo_root/scripts/prepare-paralon-wizard.sh" \
     "$repo_root/scripts/sync-hermes-admin-docs.sh" \
     "$server:~/$remote_admin/scripts/"
 ssh -o BatchMode=yes "$server" \
