@@ -77,12 +77,24 @@ require_equal() {
     fi
 }
 
-if has_jar '^DistantHorizons-.*\.jar$'; then
-    echo "PASS: Distant Horizons jar is present"
-else
-    echo "FAIL: Distant Horizons jar is absent"
-    failures=1
-fi
+case "$mode" in
+    chunky)
+        if has_jar '^DistantHorizons-.*\.jar$'; then
+            echo "FAIL: Distant Horizons jar must be absent during Chunky"
+            failures=1
+        else
+            echo "PASS: Distant Horizons jar is absent during Chunky"
+        fi
+        ;;
+    idle|dh-pregen)
+        if has_jar '^DistantHorizons-.*\.jar$'; then
+            echo "PASS: Distant Horizons jar is present"
+        else
+            echo "FAIL: Distant Horizons jar is absent"
+            failures=1
+        fi
+        ;;
+esac
 if has_jar '^Chunky-.*\.jar$'; then
     echo "PASS: Chunky jar is present"
 else

@@ -33,6 +33,10 @@ require the matching `scripts/check-dh-chunky.sh` phase to pass.
 `scripts/prepare-paralon-world.sh` and its wizard apply that invariant to the
 Hermes world cutover, derive coverage from the imported region files, and
 retain both backup and rollback paths.
+The Chunky phase must physically hold the DH jar outside `mods/` because
+`enableDistantGeneration=false` does not stop DH 3.2.0-b's chunk-update queue.
+The controller restores the recorded jar by verified name and SHA-256 before
+the DH phase or rollback.
 The controller gives post-restart pregeneration status commands five minutes
 to answer because WorldEdit can keep the server thread busy after `Done (`.
 LambDynamicLights 4.8.10 is installed only

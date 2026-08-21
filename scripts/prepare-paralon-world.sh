@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PHASE_CHECK="$SCRIPT_DIR/check-dh-chunky.sh"
 STATE_DIR="$PREP_ROOT/state"
 LOCK_FILE="$PREP_ROOT/controller.lock"
+DH_HOLD_DIR="$STATE_DIR/dh-disabled-for-chunky"
 TESTING="${REGNUM_PARALON_TESTING:-0}"
 
 usage() {
@@ -162,6 +163,16 @@ query_tasks() {
     wait_for_task_output "$start_line" 300
 }
 
+query_chunky() {
+    TASK_OUTPUT=$(send_and_wait "chunky progress" '\[Chunky\].*(No tasks running|Task running)' 300) || return 1
+}
+
+require_chunky_idle() {
+    query_chunky || { printf '%s\n' "$TASK_OUTPUT"; die "could not query Chunky"; }
+    printf '%s\n' "$TASK_OUTPUT"
+    grep -q '\[Chunky\].*No tasks running' <<<"$TASK_OUTPUT" || die "Chunky is not idle"
+}
+
 require_tasks_idle() {
     query_tasks || { printf '%s\n' "$TASK_OUTPUT"; die "could not query both pregeneration tasks"; }
     printf '%s\n' "$TASK_OUTPUT"
@@ -292,6 +303,69 @@ backup_pregen_configs() {
     mkdir -p "$backup/chunky"
     cp -a "$MC_ROOT/config/DistantHorizons.toml" "$backup/DistantHorizons.toml"
     cp -a "$MC_ROOT/config/chunky/config.json" "$backup/chunky/config.json"
+}
+
+dh_live_jars() {
+    local paths
+    shopt -s nullglob
+    paths=("$MC_ROOT"/mods/DistantHorizons-*.jar)
+    shopt -u nullglob
+    ((${#paths[@]} == 0)) || printf '%s\n' "${paths[@]}"
+}
+
+dh_held_jars() {
+    local paths
+    shopt -s nullglob
+    paths=("$DH_HOLD_DIR"/DistantHorizons-*.jar)
+    shopt -u nullglob
+    ((${#paths[@]} == 0)) || printf '%s\n' "${paths[@]}"
+}
+
+dh_is_live() {
+    local live
+    mapfile -t live < <(dh_live_jars)
+    ((${#live[@]} == 1))
+}
+
+quarantine_dh_for_chunky() {
+    local live held jar name expected_name expected_hash actual_hash
+    mapfile -t live < <(dh_live_jars)
+    mapfile -t held < <(dh_held_jars)
+    if ((${#live[@]} == 0 && ${#held[@]} == 1)); then
+        expected_name=$(state_get dh_jar_filename)
+        expected_hash=$(state_get dh_jar_sha256)
+        name=${held[0]##*/}
+        actual_hash=$(sha256sum "${held[0]}" | awk '{print $1}')
+        [[ -n "$expected_name" && "$name" == "$expected_name" ]] || die "held DH jar name is not recorded safely"
+        [[ -n "$expected_hash" && "$actual_hash" == "$expected_hash" ]] || die "held DH jar hash changed"
+        return
+    fi
+    ((${#live[@]} == 1 && ${#held[@]} == 0)) ||
+        die "expected exactly one live DH jar and no held copy, or one held copy and no live jar"
+    jar=${live[0]}
+    name=${jar##*/}
+    mkdir -p "$DH_HOLD_DIR"
+    state_set dh_jar_filename "$name"
+    state_set dh_jar_sha256 "$(sha256sum "$jar" | awk '{print $1}')"
+    mv -- "$jar" "$DH_HOLD_DIR/$name"
+}
+
+restore_dh_after_chunky() {
+    local live held name expected_name expected_hash actual_hash
+    mapfile -t live < <(dh_live_jars)
+    mapfile -t held < <(dh_held_jars)
+    if ((${#live[@]} == 1 && ${#held[@]} == 0)); then
+        return
+    fi
+    ((${#live[@]} == 0 && ${#held[@]} == 1)) ||
+        die "cannot restore DH: expected exactly one held jar and no live copy"
+    name=${held[0]##*/}
+    expected_name=$(state_get dh_jar_filename)
+    expected_hash=$(state_get dh_jar_sha256)
+    actual_hash=$(sha256sum "${held[0]}" | awk '{print $1}')
+    [[ -n "$expected_name" && "$name" == "$expected_name" ]] || die "held DH jar name does not match controller state"
+    [[ -n "$expected_hash" && "$actual_hash" == "$expected_hash" ]] || die "held DH jar hash does not match controller state"
+    mv -- "${held[0]}" "$MC_ROOT/mods/$name"
 }
 
 configure_phase() {
@@ -659,14 +733,23 @@ recover_chunky_start_failure() {
     local line="$1"
     trap - ERR
     set +e
-    printf '\nFAIL: Chunky setup failed at line %s; restoring the pre-pregeneration configs.\n' "$line" >&2
+    printf '\nFAIL: Chunky setup failed at line %s; restoring a safe server state.\n' "$line" >&2
     stop_server
-    if [[ -d "$STATE_DIR/config-before-pregen" ]]; then
-        cp -a "$STATE_DIR/config-before-pregen/DistantHorizons.toml" "$MC_ROOT/config/DistantHorizons.toml"
-        cp -a "$STATE_DIR/config-before-pregen/chunky/config.json" "$MC_ROOT/config/chunky/config.json"
+    if [[ -f "$STATE_DIR/chunky_started_epoch" ]]; then
+        configure_phase chunky
+        quarantine_dh_for_chunky
+        start_server
+        tmux send-keys -t "=$SESSION:" "chunky pause" Enter
+        state_set phase chunky-running
+    else
+        if [[ -d "$STATE_DIR/config-before-pregen" ]]; then
+            cp -a "$STATE_DIR/config-before-pregen/DistantHorizons.toml" "$MC_ROOT/config/DistantHorizons.toml"
+            cp -a "$STATE_DIR/config-before-pregen/chunky/config.json" "$MC_ROOT/config/chunky/config.json"
+        fi
+        restore_dh_after_chunky
+        start_server
+        state_set phase world-installed
     fi
-    start_server
-    state_set phase world-installed
     exit 1
 }
 
@@ -676,17 +759,74 @@ recover_dh_start_failure() {
     set +e
     printf '\nFAIL: DH setup failed at line %s; restoring the safe idle configs.\n' "$line" >&2
     stop_server
+    restore_dh_after_chunky
     configure_phase idle
     start_server
     state_set phase chunky-complete
     exit 1
 }
 
+continue_saved_chunky() {
+    local start_line output
+    start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
+    tmux send-keys -t "=$SESSION:" "chunky continue" Enter
+    output=$(wait_for_log "$start_line" '\[Chunky\].*(Task continuing|No tasks to continue)' 60) || {
+        printf '%s\n' "$output"
+        die "Chunky did not answer the continue command"
+    }
+    printf '%s\n' "$output"
+    grep -q '\[Chunky\].*Task continuing' <<<"$output" || die "Chunky has no saved task to continue"
+}
+
+harden_or_resume_chunky() {
+    local output
+    require_server_live
+    query_chunky || { printf '%s\n' "$TASK_OUTPUT"; die "could not query Chunky"; }
+    if dh_is_live; then
+        if grep -q '\[Chunky\].*Task running' <<<"$TASK_OUTPUT"; then
+            output=$(send_and_wait "chunky pause" '\[Chunky\].*Task paused' 60) || {
+                printf '%s\n' "$output"
+                die "could not pause Chunky before removing DH"
+            }
+            printf '%s\n' "$output"
+        fi
+        trap 'recover_chunky_start_failure $LINENO' ERR
+        stop_server
+        configure_phase chunky
+        quarantine_dh_for_chunky
+        start_server
+        "$PHASE_CHECK" chunky "$MC_ROOT"
+        query_chunky || { printf '%s\n' "$TASK_OUTPUT"; die "could not query Chunky after removing DH"; }
+        printf '%s\n' "$TASK_OUTPUT"
+        if grep -q '\[Chunky\].*No tasks running' <<<"$TASK_OUTPUT"; then
+            continue_saved_chunky
+        fi
+        trap - ERR
+        say "Chunky resumed with Distant Horizons physically disabled"
+        return
+    fi
+    "$PHASE_CHECK" chunky "$MC_ROOT"
+    if grep -q '\[Chunky\].*Task running' <<<"$TASK_OUTPUT"; then
+        say "Chunky is already running with Distant Horizons physically disabled"
+        return
+    fi
+    if logs_since_contain "$(state_get chunky_started_epoch)" '\[Chunky\].*Task finished for minecraft:overworld'; then
+        say "Chunky has finished; the wait phase will verify its completion marker"
+        return
+    fi
+    continue_saved_chunky
+    say "Chunky saved task resumed"
+}
+
 start_chunky() {
     local current_phase center_x center_z radius_blocks started_at start_line output
     current_phase=$(phase)
     case "$current_phase" in
-        chunky-running|chunky-complete|dh-running|dh-complete|complete)
+        chunky-running)
+            harden_or_resume_chunky
+            return
+            ;;
+        chunky-complete|dh-running|dh-complete|complete)
             say "Chunky phase already started or completed; current phase is $current_phase"
             return
             ;;
@@ -698,14 +838,16 @@ start_chunky() {
     trap 'recover_chunky_start_failure $LINENO' ERR
     stop_server
     configure_phase chunky
+    quarantine_dh_for_chunky
     start_server
     "$PHASE_CHECK" chunky "$MC_ROOT"
-    require_tasks_idle
+    require_chunky_idle
 
     center_x=$(state_get center_x)
     center_z=$(state_get center_z)
     radius_blocks=$(state_get radius_blocks)
     started_at=$(date +%s)
+    state_set chunky_started_epoch "$started_at"
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
     tmux send-keys -t "=$SESSION:" "chunky world minecraft:overworld" Enter
     tmux send-keys -t "=$SESSION:" "chunky shape circle" Enter
@@ -717,7 +859,6 @@ start_chunky() {
         die "Chunky did not report a started task"
     }
     printf '%s\n' "$output"
-    state_set chunky_started_epoch "$started_at"
     state_set phase chunky-running
     trap - ERR
 }
@@ -736,7 +877,7 @@ wait_chunky() {
     started_at=$(state_get chunky_started_epoch)
     while true; do
         server_is_live || start_server
-        query_tasks || { printf '%s\n' "$TASK_OUTPUT"; die "could not query Chunky progress"; }
+        query_chunky || { printf '%s\n' "$TASK_OUTPUT"; die "could not query Chunky progress"; }
         printf '%s\n' "$TASK_OUTPUT"
         if logs_since_contain "$started_at" '\[Chunky\].*Task cancelled'; then
             die "Chunky was cancelled; refusing to advance to Distant Horizons"
@@ -765,10 +906,11 @@ start_dh() {
         chunky-complete) ;;
         *) die "DH can start only after verified Chunky completion; phase is $current_phase" ;;
     esac
-    require_tasks_idle
+    require_chunky_idle
     trap 'recover_dh_start_failure $LINENO' ERR
     stop_server
     configure_phase dh-pregen
+    restore_dh_after_chunky
     start_server
     "$PHASE_CHECK" dh-pregen "$MC_ROOT"
     require_tasks_idle
@@ -828,6 +970,7 @@ finalize_prep() {
     [[ "$current_phase" == dh-complete ]] || die "finalize requires phase dh-complete; phase is $current_phase"
     stop_server
     configure_phase idle
+    restore_dh_after_chunky
     start_server
     "$PHASE_CHECK" idle "$MC_ROOT"
     require_tasks_idle
@@ -857,6 +1000,7 @@ rollback_world() {
         cp -a "$STATE_DIR/config-before-pregen/DistantHorizons.toml" "$MC_ROOT/config/DistantHorizons.toml"
         cp -a "$STATE_DIR/config-before-pregen/chunky/config.json" "$MC_ROOT/config/chunky/config.json"
     fi
+    restore_dh_after_chunky
     start_server
     state_set removed_paralon "$failed"
     state_set phase rolled-back
@@ -877,7 +1021,11 @@ show_status() {
             dh-running|dh-complete) checker_mode=dh-pregen ;;
         esac
         "$PHASE_CHECK" "$checker_mode" "$MC_ROOT" || true
-        query_tasks && printf '%s\n' "$TASK_OUTPUT" || true
+        if [[ "$checker_mode" == chunky ]]; then
+            query_chunky && printf '%s\n' "$TASK_OUTPUT" || true
+        else
+            query_tasks && printf '%s\n' "$TASK_OUTPUT" || true
+        fi
     else
         echo "server=not healthy"
         [[ -z "$(port_line)" ]] || echo "port_holder=$(port_line)"
@@ -888,7 +1036,7 @@ show_status() {
 
 self_test() {
     local root json toml fake_world output output_again config_hash backup_source backup_archive
-    local original_mc_root original_session task_query_test_log task_query_test_ticks tmux_prefix
+    local original_mc_root original_session original_state_dir task_query_test_log task_query_test_ticks tmux_prefix
     root=$(mktemp -d /tmp/prepare-paralon-test.XXXXXX)
     json="$root/config.json"
     toml="$root/config.toml"
@@ -958,6 +1106,19 @@ PY
     wait_for_task_output 0 300 || die "task query rejected replies delayed beyond 60 seconds"
     (( task_query_test_ticks == 61 ))
     unset -f sleep
+    original_state_dir="$STATE_DIR"
+    STATE_DIR="$root/jar-state"
+    DH_HOLD_DIR="$STATE_DIR/dh-disabled-for-chunky"
+    mkdir -p "$MC_ROOT/mods" "$STATE_DIR"
+    printf 'test-dh-jar' > "$MC_ROOT/mods/DistantHorizons-test.jar"
+    quarantine_dh_for_chunky
+    [[ ! -e "$MC_ROOT/mods/DistantHorizons-test.jar" && -f "$DH_HOLD_DIR/DistantHorizons-test.jar" ]]
+    quarantine_dh_for_chunky
+    restore_dh_after_chunky
+    [[ -f "$MC_ROOT/mods/DistantHorizons-test.jar" && ! -e "$DH_HOLD_DIR/DistantHorizons-test.jar" ]]
+    restore_dh_after_chunky
+    STATE_DIR="$original_state_dir"
+    DH_HOLD_DIR="$STATE_DIR/dh-disabled-for-chunky"
     MC_ROOT="$original_mc_root"
     require_command tmux
     original_session="$SESSION"
@@ -978,7 +1139,7 @@ PY
     tmux kill-session -t "=${tmux_prefix}-wizard"
     SESSION="$original_session"
     case "$root" in /tmp/prepare-paralon-test.*) rm -r -- "$root" ;; *) die "unsafe self-test directory" ;; esac
-    echo "PASS: idempotent config mutation, map inspection, backup verification, deadline-safe task queries, and exact tmux targeting"
+    echo "PASS: idempotent config mutation, map inspection, backup verification, deadline-safe task queries, DH quarantine restore, and exact tmux targeting"
 }
 
 action="${1:-status}"

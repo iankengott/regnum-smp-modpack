@@ -90,6 +90,13 @@ remote_commit="$(ssh -o BatchMode=yes "$server" \
     exit 1
 }
 
+remote_phase="$(ssh -o BatchMode=yes "$server" \
+    "cat \"\$HOME/$remote_dir/paralon-prep/state/phase\" 2>/dev/null || printf uninitialized")"
+case "$remote_phase" in
+    chunky-running|chunky-complete) remote_mode=chunky ;;
+    dh-running|dh-complete) remote_mode=dh-pregen ;;
+    *) remote_mode=idle ;;
+esac
 ssh -o BatchMode=yes "$server" \
-    "bash \"\$HOME/$remote_admin/scripts/check-dh-chunky.sh\" idle \"\$HOME/$remote_dir/new-server/mc\""
+    "bash \"\$HOME/$remote_admin/scripts/check-dh-chunky.sh\" '$remote_mode' \"\$HOME/$remote_dir/new-server/mc\""
 echo "PASS: Hermes admin docs match commit $commit"

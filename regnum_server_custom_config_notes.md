@@ -48,11 +48,12 @@ The automated phases encode the required ordering:
 
 1. Install Paralon and set the world border from the confirmed map coverage.
 2. Set `enableDistantGeneration = false` and
-   `forceLoadExistingChunks = true`, then run Chunky over the selected circle.
+   `forceLoadExistingChunks = true`, hold the verified DH jar outside `mods/`,
+   restart, then run Chunky over the selected circle.
 3. Require Chunky's `Task finished` marker. An idle task without that marker is
    a failure, not success.
-4. Set `forceLoadExistingChunks = false`, re-enable DH, and run `dh pregen`
-   with the same center and radius in chunks.
+4. Set `forceLoadExistingChunks = false`, restore the exact DH jar, restart,
+   and run `dh pregen` with the same center and radius in chunks.
 5. Require DH's `Pregen is complete` marker, restore the safe idle settings,
    and require both status commands to report no task.
 
@@ -72,10 +73,15 @@ database. Distant Horizons 3.2.0-b warns that Chunky can produce chunks faster
 than its LOD queue can process. When the queue drops old work, the result is
 holes in the LOD database.
 
-Do not start Chunky while `enableDistantGeneration = true`. Use Chunky first
-with DH ingestion disabled, then use DH's own pre-generator to scan the saved
-chunks. `PRE_EXISTING_ONLY` keeps the second stage from creating terrain beyond
-the real world.
+`enableDistantGeneration = false` stops DH's distant generator, but DH 3.2.0-b
+still receives every saved Chunky chunk through its chunk-update queue. The
+live Veridis attempt proved this when DH reached its 4,000-item queue limit and
+warned that LOD holes could result. The controller therefore pauses Chunky,
+holds the verified DH jar outside `mods/`, restarts, and continues Chunky's
+saved task. This matches DH's stricter recommendation to run Chunky without DH
+installed. After Chunky finishes, the controller restores DH and uses its own
+pre-generator to scan the saved chunks. `PRE_EXISTING_ONLY` keeps that second
+stage from creating terrain beyond the real world.
 
 Run the phase check from the pack checkout before each stage:
 
@@ -103,8 +109,11 @@ ssh HERMES_HOST \
    enableDistantGeneration = false
    ```
 
-3. Start the server and require the `chunky` phase check to pass.
-4. Select the exact area. This example is the old 10,000-block-radius plan:
+3. Stop the server, move its one verified `DistantHorizons-*.jar` to the
+   controller's retained state directory, and restart. The controller performs
+   this idempotently and records the filename and SHA-256.
+4. Require the `chunky` phase check to pass. It rejects a present DH jar.
+5. Select the exact area. This example is the old 10,000-block-radius plan:
 
    ```mcfunction
    chunky world minecraft:overworld
@@ -114,7 +123,7 @@ ssh HERMES_HOST \
    chunky start
    ```
 
-5. Monitor with `chunky progress`. Let it finish before stage 2. Do not start a
+6. Monitor with `chunky progress`. Let it finish before stage 2. Do not start a
    DH pre-generation task at the same time.
 
 The `625c` argument means 625 chunks, or 10,000 blocks. Pick the radius from
@@ -124,19 +133,21 @@ distance and is not a substitute for the command radius.
 ## Stage 2: build LODs from the saved chunks
 
 1. Stop the server cleanly.
-2. Set `enableDistantGeneration = true` and keep
+2. Restore the held DH jar only after verifying its recorded filename and
+   SHA-256.
+3. Set `enableDistantGeneration = true` and keep
    `distantGeneratorMode = "PRE_EXISTING_ONLY"`.
-3. Start the server and require the `dh-pregen` phase check to pass.
-4. Run DH's pre-generator over the same center and chunk radius:
+4. Start the server and require the `dh-pregen` phase check to pass.
+5. Run DH's pre-generator over the same center and chunk radius:
 
    ```mcfunction
    dh pregen start minecraft:overworld 0 0 625
    ```
 
-5. Monitor with `dh pregen status`. Do not open the server to normal play until
+6. Monitor with `dh pregen status`. Do not open the server to normal play until
    it reports completion and the server log has no fatal, out-of-memory, or
    pre-generation failure.
-6. Connect a real client and inspect the outer edge and several interior areas
+7. Connect a real client and inspect the outer edge and several interior areas
    for missing LOD tiles. Keep the backup until that visual check passes.
 
 The server's `enableServerGeneration` setting controls whether clients may ask

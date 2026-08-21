@@ -248,7 +248,8 @@ PARALON_CONFIRM="REPLACE CURRENT REGNUM WORLD" "$CONTROLLER" install \
   "$PARALON_CENTER_X" "$PARALON_CENTER_Z" "$PARALON_RADIUS_CHUNKS"
 
 stage "Load and fill real chunks with Chunky"
-say "The controller disables DH generation before Chunky starts and forces existing premade chunks to load."
+say "The controller temporarily holds the DH jar outside mods, restarts, and forces existing premade chunks to load."
+say "It restores DH only after Chunky's saved task has a verified completion marker."
 warn "This can run for days on a 50K map. Keep this wizard inside tmux."
 confirm "Start or resume the guarded Chunky phase?" || { warn "Chunky not started"; exit 0; }
 "$CONTROLLER" chunky-start

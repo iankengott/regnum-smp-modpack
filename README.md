@@ -132,13 +132,15 @@ tmux new-session -s regnum-paralon
 The wizard calls `prepare-paralon-world.sh`, which inspects the real region-file
 boundary, requires an explicit player-data choice, backs up and replaces the
 current Regnum world, and sets a matching world border. It then runs Chunky and
-Distant Horizons sequentially. Chunky force-loads the premade chunks while DH
-generation is disabled. Only a verified Chunky completion permits the wizard
-to re-enable DH and run `dh pregen` with the same center and chunk radius.
+Distant Horizons sequentially. The controller temporarily holds the DH jar
+outside `mods/` while Chunky force-loads the premade chunks. This prevents DH's
+chunk-update queue from ingesting Chunky output. Only a verified Chunky
+completion permits the controller to restore DH and run `dh pregen` with the
+same center and chunk radius.
 
 The operation is resumable. Run `prepare-paralon-world.sh status` at any time.
 Run `prepare-paralon-world.sh rollback` to restore the retained prior world.
-After a server restart, the controller allows up to five minutes for both
+After a server restart, the controller allows up to five minutes for
 pregeneration status replies because WorldEdit can delay the first console
 commands while it builds its block-state map.
 The wizard preserves Paralon's terrain and mature trees; it does not invoke the
