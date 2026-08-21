@@ -1,274 +1,127 @@
-# Regnum Server Custom Config Notes
+# Regnum server Distant Horizons and Chunky workflow
 
-This file summarizes the custom server changes made or intended to preserve while rebuilding/restoring the Minecraft server.
+This is the operational recipe for the live Regnum server. It records verified
+state separately from work that an operator has not started.
 
-## Target Final State
+## Verified state on 2026-08-20
 
-The intended setup is:
+- Distant Horizons 3.2.0-b, Chunky 1.4.23, and C2ME
+  0.4.0-alpha.0.120 are installed on Hermes.
+- Both mods load, and Distant Horizons registers its C2ME integration.
+- `distantGeneratorMode = "PRE_EXISTING_ONLY"`.
+- The live server's DH render radius is 150 chunks. The tracked Prism client
+  config currently uses 50 chunks. Neither value sets the pre-generation area.
+- Chunky has `continueOnRestart = true` and a five-second update interval.
+- `max-tick-time=-1`, `view-distance=10`, and `simulation-distance=6`.
+- `chunky progress` and `dh pregen status` both report no running task.
+- ChunkyBorder and chunky-offline are not installed. Neither is required for
+  the workflow below.
 
-```text
-Distant Horizons installed
-Distant Horizons mode = PRE_EXISTING_ONLY
-Distant Horizons radius = 625 chunks
-Chunky installed
-ChunkyBorder installed
-chunky-offline installed
-C2ME installed
-max-tick-time=-1
-view-distance=10
-simulation-distance=6
-Chunky square border radius = 625c
-Chunky pregeneration running for overworld
-```
+The earlier 625-chunk plan was never started. Do not report the 10,000-block
+area as generated until both stages finish and their output is checked.
 
----
+## Why the two stages must be separate
 
-## Distant Horizons Settings
+Chunky saves complete Minecraft chunks. Distant Horizons builds a separate LOD
+database. Distant Horizons 3.2.0-b warns that Chunky can produce chunks faster
+than its LOD queue can process. When the queue drops old work, the result is
+holes in the LOD database.
 
-Config file:
+Do not start Chunky while `enableDistantGeneration = true`. Use Chunky first
+with DH ingestion disabled, then use DH's own pre-generator to scan the saved
+chunks. `PRE_EXISTING_ONLY` keeps the second stage from creating terrain beyond
+the real world.
+
+Run the phase check from the pack checkout before each stage:
 
 ```bash
-~/regnum/config/DistantHorizons.toml
+scripts/check-dh-chunky.sh idle "$PWD"
+scripts/check-dh-chunky.sh chunky SERVER_ROOT
+scripts/check-dh-chunky.sh dh-pregen SERVER_ROOT
 ```
 
-Set:
+For Hermes without copying the script permanently:
+
+```bash
+ssh HERMES_HOST \
+  'bash -s -- chunky /home/ian-kengott/regnum/new-server/mc' \
+  < scripts/check-dh-chunky.sh
+```
+
+## Stage 1: generate saved chunks with Chunky
+
+1. Take a world backup and stop the server cleanly.
+2. In the live server's `config/DistantHorizons.toml`, set:
+
+   ```toml
+   distantGeneratorMode = "PRE_EXISTING_ONLY"
+   enableDistantGeneration = false
+   ```
+
+3. Start the server and require the `chunky` phase check to pass.
+4. Select the exact area. This example is the old 10,000-block-radius plan:
+
+   ```mcfunction
+   chunky world minecraft:overworld
+   chunky shape square
+   chunky center 0 0
+   chunky radius 625c
+   chunky start
+   ```
+
+5. Monitor with `chunky progress`. Let it finish before stage 2. Do not start a
+   DH pre-generation task at the same time.
+
+The `625c` argument means 625 chunks, or 10,000 blocks. Pick the radius from
+the actual map boundary. `lodChunkRenderDistanceRadius` is only a render
+distance and is not a substitute for the command radius.
+
+## Stage 2: build LODs from the saved chunks
+
+1. Stop the server cleanly.
+2. Set `enableDistantGeneration = true` and keep
+   `distantGeneratorMode = "PRE_EXISTING_ONLY"`.
+3. Start the server and require the `dh-pregen` phase check to pass.
+4. Run DH's pre-generator over the same center and chunk radius:
+
+   ```mcfunction
+   dh pregen start minecraft:overworld 0 0 625
+   ```
+
+5. Monitor with `dh pregen status`. Do not open the server to normal play until
+   it reports completion and the server log has no fatal, out-of-memory, or
+   pre-generation failure.
+6. Connect a real client and inspect the outer edge and several interior areas
+   for missing LOD tiles. Keep the backup until that visual check passes.
+
+The server's `enableServerGeneration` setting controls whether clients may ask
+it to generate missing LODs during play. It does not replace the explicit
+`dh pregen` stage.
+
+## Routine idle state
+
+After both stages, leave:
 
 ```toml
 distantGeneratorMode = "PRE_EXISTING_ONLY"
+enableDistantGeneration = true
 ```
 
-Reason: Chunky will generate/save real chunks. Distant Horizons should only build LODs from chunks that already exist, instead of forcing live full chunk generation.
+Require the `idle` phase check to pass. Chunky should have no running task.
 
-Also set:
-
-```toml
-lodChunkRenderDistanceRadius = 625
-```
-
-Reason: 625 chunks equals 10,000 blocks of DH LOD radius.
-
-Earlier value tried but moved away from:
-
-```toml
-distantGeneratorMode = "INTERNAL_SERVER"
-```
-
-That corresponds to “Full - Save Chunks,” but at 625 chunks it caused server watchdog freezes because it forced real chunk generation through Distant Horizons.
-
----
-
-## Server Watchdog / `server.properties`
-
-Config file:
-
-```bash
-~/regnum/server.properties
-```
-
-Set:
-
-```properties
-max-tick-time=-1
-```
-
-Reason: disables the watchdog killing the server when chunk generation causes a long tick.
-
-Also keep vanilla render/simulation distance sane:
-
-```properties
-view-distance=10
-simulation-distance=6
-```
-
-Reason: do not use vanilla view distance for extreme rendering. Chunky and Distant Horizons handle the huge area, not vanilla Minecraft.
-
----
-
-## Chunky Mods Added
-
-These were added to support pregeneration and world borders:
-
-```text
-Chunky-NeoForge-1.4.23.jar
-ChunkyBorder-1.2.18.jar
-chunky-offline-v1.1.0.jar
-```
-
-Purpose:
-
-```text
-Chunky = pregenerate real chunks
-ChunkyBorder = apply a world border from the Chunky selection
-chunky-offline = let Chunky keep working without players online
-```
-
-Install location:
-
-```bash
-~/regnum/mods/
-```
-
----
-
-## Chunky Setup Commands
-
-Once the server launches correctly, run these in the server console:
-
-```mcfunction
-chunky world minecraft:overworld
-chunky shape square
-chunky center 0 0
-chunky radius 625c
-chunky border add
-chunky start
-```
-
-Equivalent radius:
-
-```text
-625 chunks = 10,000 blocks
-```
-
-Check progress:
+Useful status commands:
 
 ```mcfunction
 chunky progress
+dh pregen status
 ```
 
-Pause/resume:
+Chunky 1.4.23 saves active tasks during a clean shutdown and the tracked config
+continues them after restart. An extra chunky-offline mod is not needed on this
+dedicated server. Install ChunkyBorder only if the server needs its separate
+border integration; it is unrelated to reliable LOD generation.
 
-```mcfunction
-chunky pause
-chunky continue
-```
+Upstream references:
 
----
-
-## C2ME
-
-Wanted/installed:
-
-```text
-C2ME NeoForge for Minecraft 1.21.1
-```
-
-Purpose: speed up chunk generation, chunk loading, and chunk I/O. Logs previously showed C2ME loaded and Distant Horizons detected it, meaning DH would use C2ME-handled methods for pre-existing chunk access.
-
-Install location:
-
-```bash
-~/regnum/mods/
-```
-
----
-
-## JVM / Launch Files Needed
-
-The working server needs these launch pieces:
-
-```text
-start.sh
-run.sh
-server.jar
-user_jvm_args.txt
-libraries/
-versions/
-```
-
-The important NeoForge file path verified earlier was:
-
-```text
-~/regnum/libraries/net/neoforged/neoforge/21.1.228/unix_args.txt
-```
-
-If rebuilding from an old working server backup, copy these from the backup into the new `~/regnum` folder.
-
----
-
-## Player / Server Identity Files to Preserve
-
-Copy these from the old working server if wiping/replacing:
-
-```text
-eula.txt
-ops.json
-whitelist.json
-banned-players.json
-banned-ips.json
-server.properties
-```
-
----
-
-## Verification Commands After Restoring
-
-Run:
-
-```bash
-cd ~/regnum
-
-echo "=== DH ==="
-grep -nE 'distantGeneratorMode|lodChunkRenderDistanceRadius' config/DistantHorizons.toml
-
-echo
-echo "=== Server properties ==="
-grep -nE 'max-tick-time|view-distance|simulation-distance' server.properties
-
-echo
-echo "=== Key mods ==="
-ls mods | grep -iE 'chunky|distant|c2me'
-
-echo
-echo "=== Launcher files ==="
-find . -maxdepth 6 \( -iname '*unix_args.txt' -o -iname 'server.jar' -o -iname 'run.sh' -o -iname 'start.sh' \) -print
-```
-
-Expected output should include:
-
-```text
-distantGeneratorMode = "PRE_EXISTING_ONLY"
-lodChunkRenderDistanceRadius = 625
-max-tick-time=-1
-view-distance=10
-simulation-distance=6
-Chunky-NeoForge...
-ChunkyBorder...
-chunky-offline...
-DistantHorizons...
-c2me...
-start.sh / run.sh / server.jar / unix_args.txt present
-```
-
----
-
-## Launch and Confirm Mods Loaded
-
-Start server:
-
-```bash
-cd ~/regnum
-./start.sh
-```
-
-After boot, check logs:
-
-```bash
-grep -iE 'chunky|chunkyborder|distant|c2me' logs/latest.log | tail -120
-```
-
-Then apply the Chunky square border and begin pregeneration from the server console:
-
-```mcfunction
-chunky world minecraft:overworld
-chunky shape square
-chunky center 0 0
-chunky radius 625c
-chunky border add
-chunky start
-```
-
-Check progress:
-
-```mcfunction
-chunky progress
-```
+- [Distant Horizons server-owner pre-generation guidance](https://gitlab.com/distant-horizons-team/distant-horizons/-/wikis/1-user-guide/1-frequently-asked-questions/5-server-owners/Server-Owners)
+- [Chunky FAQ: using Chunky with Distant Horizons](https://github.com/pop4959/Chunky/wiki/FAQ#can-i-use-chunky-to-pre-generate-my-world-with-the-distanthorizons-mod)
