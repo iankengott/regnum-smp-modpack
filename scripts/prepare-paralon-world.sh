@@ -495,8 +495,7 @@ recover_install_failure() {
 apply_world_border() {
     local center_x="$1" center_z="$2" radius_chunks="$3"
     send_and_wait "worldborder center $center_x $center_z" 'world border.*(center| to )' 20 >/dev/null
-    send_and_wait "worldborder set $((radius_chunks * 32))" 'world border.*blocks wide|world border.*size' 20 >/dev/null
-    send_and_wait "worldborder get" 'world border is currently' 20
+    send_and_wait "worldborder set $((radius_chunks * 32))" 'world border.*block\(s\) wide|world border.*size' 20
 }
 
 install_world() {
