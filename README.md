@@ -90,14 +90,12 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
 
 ## Pack customizations
 
-- Chunky 1.4.23 and Distant Horizons 3.2.0-b are included, but their
-  pre-generators must run sequentially. Chunky can generate chunks faster than
-  Distant Horizons can turn them into LODs, which leaves holes in the
-  LOD database. Disable DH's `enableDistantGeneration` while Chunky runs. After
-  Chunky finishes, re-enable it and run `dh pregen` over the same selection.
-  `minecraft/config/chunky/config.json` resumes saved tasks after a restart and
-  limits progress messages to one every five seconds. Check each phase with
+- Chunky 1.4.23 and Distant Horizons 3.2.0-b are included. Their authoritative
+  safety warning and two-stage operator procedure live in
+  `regnum_server_custom_config_notes.md`. Validate the selected stage with
   `scripts/check-dh-chunky.sh {idle|chunky|dh-pregen} INSTANCE_OR_SERVER_ROOT`.
+  `minecraft/config/chunky/config.json` resumes saved tasks after a restart and
+  limits progress messages to one every five seconds.
 - Treasure Level Mobs 1.1.4 has a reproducible local patch in
   `scripts/patch-treasurelevelmobs.sh`. It keeps the mod's advancement, weather,
   moon, biome, and difficulty inputs, changes only its distance divisor from

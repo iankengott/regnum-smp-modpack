@@ -27,10 +27,10 @@ As of 2026-08-20, the repository tracks the live pack's configuration and
 manifests, generated from the main PC's working instance: 267 mods, 7 resource
 packs, 1 shader pack, and 2 datapacks, on Minecraft 1.21.1 / NeoForge 21.1.248.
 Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
-configured to resume after restarts. Distant Horizons 3.2.0-b must not ingest
-chunks while Chunky runs because its bounded queue can drop work and leave LOD
-holes. Use `scripts/check-dh-chunky.sh` to enforce the sequential Chunky then
-DH-pregen workflow. LambDynamicLights 4.8.10 is installed only
+configured to resume after restarts. Before changing Distant Horizons or
+starting either pre-generator, read `regnum_server_custom_config_notes.md` and
+require the matching `scripts/check-dh-chunky.sh` phase to pass.
+LambDynamicLights 4.8.10 is installed only
 as its primary Modrinth jar; its embedded API and runtime must not also be
 placed in `minecraft/mods/`. The mod list is what is installed, not an approved
 list — approval, a compatibility matrix, and a reproducible release artifact
