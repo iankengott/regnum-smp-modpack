@@ -90,9 +90,13 @@ port_pid() {
     port_line | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -n 1
 }
 
+server_session_exists() {
+    tmux has-session -t "=$SESSION" 2>/dev/null
+}
+
 server_is_live() {
     local pid cwd
-    tmux has-session -t "$SESSION" 2>/dev/null || return 1
+    server_session_exists || return 1
     pid=$(port_pid)
     [[ -n "$pid" ]] || return 1
     cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)
@@ -122,7 +126,7 @@ send_and_wait() {
     local command="$1" expression="$2" timeout="${3:-20}" start_line
     require_server_live
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "$SESSION" "$command" Enter
+    tmux send-keys -t "=$SESSION" "$command" Enter
     wait_for_log "$start_line" "$expression" "$timeout"
 }
 
@@ -130,8 +134,8 @@ query_tasks() {
     local start_line output elapsed=0
     require_server_live
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "$SESSION" "chunky progress" Enter
-    tmux send-keys -t "$SESSION" "dh pregen status" Enter
+    tmux send-keys -t "=$SESSION" "chunky progress" Enter
+    tmux send-keys -t "=$SESSION" "dh pregen status" Enter
     while (( elapsed < 20 )); do
         output=$(tail -n "+$((start_line + 1))" "$MC_ROOT/logs/latest.log" 2>/dev/null || true)
         if grep -Eq '\[Chunky\].*(No tasks running|Task running)' <<<"$output" &&
@@ -156,19 +160,25 @@ require_tasks_idle() {
 stop_server() {
     local elapsed=0
     if ! server_is_live; then
-        [[ -z "$(port_line)" ]] || die "port $PORT is held by a foreign process: $(port_line)"
-        return
+        if [[ -n "$(port_line)" ]]; then
+            die "port $PORT is held by a foreign process: $(port_line)"
+            return 1
+        fi
+        return 0
     fi
     say "Stopping Regnum cleanly"
-    tmux send-keys -t "$SESSION" "save-all flush" Enter
+    tmux send-keys -t "=$SESSION" "save-all flush" Enter
     sleep 5
-    tmux send-keys -t "$SESSION" "stop" Enter
+    tmux send-keys -t "=$SESSION" "stop" Enter
     while [[ -n "$(port_line)" && $elapsed -lt 120 ]]; do
         sleep 2
         elapsed=$((elapsed + 2))
     done
-    [[ -z "$(port_line)" ]] || die "Regnum did not release port $PORT within 120 seconds"
-    tmux kill-session -t "$SESSION" 2>/dev/null || true
+    if [[ -n "$(port_line)" ]]; then
+        die "Regnum did not release port $PORT within 120 seconds"
+        return 1
+    fi
+    tmux kill-session -t "=$SESSION" 2>/dev/null || true
 }
 
 start_server() {
@@ -176,13 +186,24 @@ start_server() {
     if server_is_live; then
         return
     fi
-    [[ -z "$(port_line)" ]] || die "port $PORT is held by a foreign process: $(port_line)"
-    [[ -x "$MC_ROOT/start.sh" ]] || die "missing executable $MC_ROOT/start.sh"
-    tmux has-session -t "$SESSION" 2>/dev/null &&
+    if [[ -n "$(port_line)" ]]; then
+        die "port $PORT is held by a foreign process: $(port_line)"
+        return 1
+    fi
+    if [[ ! -x "$MC_ROOT/start.sh" ]]; then
+        die "missing executable $MC_ROOT/start.sh"
+        return 1
+    fi
+    if server_session_exists; then
         die "tmux session $SESSION exists without the expected server listener"
+        return 1
+    fi
     started_at=$(date +%s)
     say "Starting Regnum"
-    tmux new-session -d -s "$SESSION" "cd '$MC_ROOT' && exec ./start.sh"
+    if ! tmux new-session -d -s "$SESSION" "cd '$MC_ROOT' && exec ./start.sh"; then
+        die "could not create tmux session $SESSION"
+        return 1
+    fi
     while (( elapsed < 600 )); do
         if [[ -f "$MC_ROOT/logs/latest.log" ]] &&
            [[ "$(stat -c %Y "$MC_ROOT/logs/latest.log")" -ge "$started_at" ]] &&
@@ -190,12 +211,15 @@ start_server() {
             grep 'Done (' "$MC_ROOT/logs/latest.log" | tail -n 1
             return
         fi
-        tmux has-session -t "$SESSION" 2>/dev/null ||
+        if ! server_session_exists; then
             die "Regnum tmux session exited during startup"
+            return 1
+        fi
         sleep 2
         elapsed=$((elapsed + 2))
     done
     die "Regnum did not report Done and listen on $PORT within 600 seconds"
+    return 1
 }
 
 set_toml_value() {
@@ -437,28 +461,48 @@ preserve_world_owned_data() {
 recover_install_failure() {
     local line="$1" rollback failed
     trap - ERR
-    set -e
+    set +e
     printf '\nFAIL: Paralon installation failed at line %s; restoring the prior world.\n' "$line" >&2
     rollback=$(state_get rollback_world)
     if [[ -n "$rollback" && -d "$rollback" ]]; then
-        stop_server
+        if ! stop_server; then
+            printf 'FAIL: could not stop Regnum during installation recovery.\n' >&2
+            exit 1
+        fi
         if [[ -d "$MC_ROOT/world" ]]; then
             failed="$PREP_ROOT/failed-paralon-$(date +%Y%m%d-%H%M%S)"
-            mv "$MC_ROOT/world" "$failed"
-            state_set failed_world "$failed"
+            if ! mv "$MC_ROOT/world" "$failed" || ! state_set failed_world "$failed"; then
+                printf 'FAIL: could not retain the failed Paralon world at %s.\n' "$failed" >&2
+                exit 1
+            fi
         fi
-        mv "$rollback" "$MC_ROOT/world"
-        state_set phase install-rolled-back
+        if ! mv "$rollback" "$MC_ROOT/world"; then
+            printf 'FAIL: could not restore rollback world %s.\n' "$rollback" >&2
+            exit 1
+        fi
+        state_set world_swapped false || exit 1
+        state_set phase install-rolled-back || exit 1
     fi
     if ! server_is_live; then
-        start_server
+        if ! start_server; then
+            printf 'FAIL: prior world is in place but Regnum did not restart.\n' >&2
+            exit 1
+        fi
     fi
     exit 1
+}
+
+apply_world_border() {
+    local center_x="$1" center_z="$2" radius_chunks="$3"
+    send_and_wait "worldborder center $center_x $center_z" 'world border.*(center| to )' 20 >/dev/null
+    send_and_wait "worldborder set $((radius_chunks * 32))" 'world border.*blocks wide|world border.*size' 20 >/dev/null
+    send_and_wait "worldborder get" 'world border is currently' 20
 }
 
 install_world() {
     local source="$1" edition="$2" player_mode="$3" center_x="$4" center_z="$5" radius_chunks="$6"
     local current_phase stamp staging rollback quarantine current_kib free_kib required_kib staged_hash
+    local live_hash swapped_marker imported_quarantine backup_archive
     [[ "$edition" != *$'\n'* && -n "$edition" ]] || die "edition must be a non-empty single line"
     [[ "$player_mode" == reset || "$player_mode" == preserve ]] || die "PLAYER_MODE must be reset or preserve"
     [[ "$center_x" =~ ^-?[0-9]+$ && "$center_z" =~ ^-?[0-9]+$ && "$radius_chunks" =~ ^[0-9]+$ ]] ||
@@ -477,6 +521,32 @@ install_world() {
     source_metrics "$source"
     (( radius_chunks >= METRIC_RADIUS_CHUNKS )) ||
         die "radius $radius_chunks does not cover all source regions; minimum is $METRIC_RADIUS_CHUNKS"
+
+    if [[ "$current_phase" == installing && -f "$MC_ROOT/world/level.dat" ]]; then
+        live_hash=$(sha256sum "$MC_ROOT/world/level.dat" | awk '{print $1}')
+        swapped_marker=$(state_get world_swapped false)
+        imported_quarantine=$(state_get imported_data_quarantine)
+        rollback=$(state_get rollback_world)
+        backup_archive=$(state_get backup_archive)
+        if [[ "$swapped_marker" == true ||
+              ( -n "$imported_quarantine" && "$live_hash" == "$METRIC_LEVEL_SHA256" ) ]]; then
+            [[ -n "$rollback" && -d "$rollback" ]] ||
+                die "cannot resume installed Paralon: rollback world is missing"
+            [[ -n "$backup_archive" && -f "$backup_archive" ]] ||
+                die "cannot resume installed Paralon: verified backup is missing"
+            verify_world_backup "$backup_archive"
+            state_set world_swapped true
+            trap 'recover_install_failure $LINENO' ERR
+            say "Resuming the installed Paralon world after an interrupted restart"
+            start_server
+            apply_world_border "$center_x" "$center_z" "$radius_chunks"
+            state_set phase world-installed
+            trap - ERR
+            say "Paralon installed. Chunky has not started."
+            return
+        fi
+    fi
+
     source_is_in_use "$METRIC_SOURCE" && die "a process is using the source world; stop it before copying"
     require_server_live
     require_tasks_idle
@@ -535,11 +605,10 @@ install_world() {
     preserve_world_owned_data "$rollback" "$staging" "$player_mode" "$quarantine"
     mv "$staging" "$MC_ROOT/world"
     state_set imported_data_quarantine "$quarantine"
+    state_set world_swapped true
     start_server
 
-    send_and_wait "worldborder center $center_x $center_z" 'world border.*(center| to )' 20 >/dev/null
-    send_and_wait "worldborder set $((radius_chunks * 32))" 'world border.*blocks wide|world border.*size' 20 >/dev/null
-    send_and_wait "worldborder get" 'world border is currently' 20
+    apply_world_border "$center_x" "$center_z" "$radius_chunks"
     state_set phase world-installed
     trap - ERR
     say "Paralon installed. Chunky has not started."
@@ -613,11 +682,11 @@ start_chunky() {
     radius_blocks=$(state_get radius_blocks)
     started_at=$(date +%s)
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "$SESSION" "chunky world minecraft:overworld" Enter
-    tmux send-keys -t "$SESSION" "chunky shape circle" Enter
-    tmux send-keys -t "$SESSION" "chunky center $center_x $center_z" Enter
-    tmux send-keys -t "$SESSION" "chunky radius $radius_blocks" Enter
-    tmux send-keys -t "$SESSION" "chunky start" Enter
+    tmux send-keys -t "=$SESSION" "chunky world minecraft:overworld" Enter
+    tmux send-keys -t "=$SESSION" "chunky shape circle" Enter
+    tmux send-keys -t "=$SESSION" "chunky center $center_x $center_z" Enter
+    tmux send-keys -t "=$SESSION" "chunky radius $radius_blocks" Enter
+    tmux send-keys -t "=$SESSION" "chunky start" Enter
     output=$(wait_for_log "$start_line" '\[Chunky\].*Task started' 30) || {
         printf '%s\n' "$output"
         die "Chunky did not report a started task"
@@ -794,6 +863,7 @@ show_status() {
 
 self_test() {
     local root json toml fake_world output output_again config_hash backup_source backup_archive
+    local original_session tmux_prefix
     root=$(mktemp -d /tmp/prepare-paralon-test.XXXXXX)
     json="$root/config.json"
     toml="$root/config.toml"
@@ -838,8 +908,23 @@ PY
         die "backup regression fixture did not reproduce the early-exit pipe failure"
     fi
     verify_world_backup "$backup_archive"
+    require_command tmux
+    original_session="$SESSION"
+    tmux_prefix="paralon-selftest-$$-$RANDOM"
+    tmux new-session -d -s "${tmux_prefix}-wizard" "sleep 30"
+    SESSION="$tmux_prefix"
+    tmux has-session -t "$SESSION" 2>/dev/null ||
+        die "tmux prefix regression fixture did not reproduce the ambiguous match"
+    if server_session_exists; then
+        die "exact server session check matched the wizard session prefix"
+    fi
+    tmux new-session -d -s "$SESSION" "sleep 30"
+    server_session_exists || die "exact server session check missed the real session"
+    tmux kill-session -t "=$SESSION"
+    tmux kill-session -t "=${tmux_prefix}-wizard"
+    SESSION="$original_session"
     case "$root" in /tmp/prepare-paralon-test.*) rm -r -- "$root" ;; *) die "unsafe self-test directory" ;; esac
-    echo "PASS: idempotent config mutation, map-boundary inspection, and full backup verification"
+    echo "PASS: idempotent config mutation, map inspection, backup verification, and exact tmux targeting"
 }
 
 action="${1:-status}"
