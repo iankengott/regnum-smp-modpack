@@ -126,7 +126,7 @@ send_and_wait() {
     local command="$1" expression="$2" timeout="${3:-20}" start_line
     require_server_live
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "=$SESSION" "$command" Enter
+    tmux send-keys -t "=$SESSION:" "$command" Enter
     wait_for_log "$start_line" "$expression" "$timeout"
 }
 
@@ -134,8 +134,8 @@ query_tasks() {
     local start_line output elapsed=0
     require_server_live
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "=$SESSION" "chunky progress" Enter
-    tmux send-keys -t "=$SESSION" "dh pregen status" Enter
+    tmux send-keys -t "=$SESSION:" "chunky progress" Enter
+    tmux send-keys -t "=$SESSION:" "dh pregen status" Enter
     while (( elapsed < 20 )); do
         output=$(tail -n "+$((start_line + 1))" "$MC_ROOT/logs/latest.log" 2>/dev/null || true)
         if grep -Eq '\[Chunky\].*(No tasks running|Task running)' <<<"$output" &&
@@ -167,9 +167,9 @@ stop_server() {
         return 0
     fi
     say "Stopping Regnum cleanly"
-    tmux send-keys -t "=$SESSION" "save-all flush" Enter
+    tmux send-keys -t "=$SESSION:" "save-all flush" Enter
     sleep 5
-    tmux send-keys -t "=$SESSION" "stop" Enter
+    tmux send-keys -t "=$SESSION:" "stop" Enter
     while [[ -n "$(port_line)" && $elapsed -lt 120 ]]; do
         sleep 2
         elapsed=$((elapsed + 2))
@@ -682,11 +682,11 @@ start_chunky() {
     radius_blocks=$(state_get radius_blocks)
     started_at=$(date +%s)
     start_line=$(wc -l < "$MC_ROOT/logs/latest.log")
-    tmux send-keys -t "=$SESSION" "chunky world minecraft:overworld" Enter
-    tmux send-keys -t "=$SESSION" "chunky shape circle" Enter
-    tmux send-keys -t "=$SESSION" "chunky center $center_x $center_z" Enter
-    tmux send-keys -t "=$SESSION" "chunky radius $radius_blocks" Enter
-    tmux send-keys -t "=$SESSION" "chunky start" Enter
+    tmux send-keys -t "=$SESSION:" "chunky world minecraft:overworld" Enter
+    tmux send-keys -t "=$SESSION:" "chunky shape circle" Enter
+    tmux send-keys -t "=$SESSION:" "chunky center $center_x $center_z" Enter
+    tmux send-keys -t "=$SESSION:" "chunky radius $radius_blocks" Enter
+    tmux send-keys -t "=$SESSION:" "chunky start" Enter
     output=$(wait_for_log "$start_line" '\[Chunky\].*Task started' 30) || {
         printf '%s\n' "$output"
         die "Chunky did not report a started task"
@@ -920,6 +920,9 @@ PY
     fi
     tmux new-session -d -s "$SESSION" "sleep 30"
     server_session_exists || die "exact server session check missed the real session"
+    [[ "$(tmux display-message -p -t "=$SESSION:" '#{session_name}')" == "$SESSION" ]] ||
+        die "exact server pane target missed the real session"
+    tmux send-keys -t "=$SESSION:" Space
     tmux kill-session -t "=$SESSION"
     tmux kill-session -t "=${tmux_prefix}-wizard"
     SESSION="$original_session"
