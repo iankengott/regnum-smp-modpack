@@ -24,8 +24,8 @@
 
 	[redstone.bellows]
 		enabled = true
-		#bellows pushes air following this equation: 
-		#air=(sin(2PI*ticks/period)<0), with period = base_period-(redstone_power-1)*power_scaling 
+		#bellows pushes air following this equation:
+		#air=(sin(2PI*ticks/period)<0), with period = base_period-(redstone_power-1)*power_scaling
 		#represents base period at 1 power
 		# Default: 78
 		# Range: 1 ~ 512
@@ -34,8 +34,8 @@
 		# Default: 2.0
 		# Range: 0.0 ~ 16.0
 		power_scaling = 2.0
-		#velocity increase uses this equation: 
-		#vel = base_vel*((range-entity_distance)/range) with base_vel = base_velocity_scaling/period 
+		#velocity increase uses this equation:
+		#vel = base_vel*((range-entity_distance)/range) with base_vel = base_velocity_scaling/period
 		#note that the block will push further the faster it's pulsing
 		# Default: 5.0
 		# Range: 0.0 ~ 64.0

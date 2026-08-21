@@ -29,7 +29,7 @@ sync. Treat `main` accordingly.
 | `scripts/` | Manifest generation, drift checking, and instance sync |
 | `regnum_server_custom_config_notes.md` | Server-side Distant Horizons / Chunky notes |
 
-Current tracked inventory: 271 mods, 224 server mods, 47 client-only mods, 7
+Current tracked inventory: 274 mods, 227 server mods, 47 client-only mods, 7
 resource packs, 1 shader pack, and 2 datapacks on Minecraft 1.21.1 / NeoForge
 21.1.248.
 
@@ -114,6 +114,12 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   (`DZDOX6ps`). That jar embeds its API and NeoForge runtime. Do not install
   `lambdynamiclights-api-*` or `lambdynamiclights-runtime-*` beside it;
   `scripts/check-mods.sh` rejects that duplicate-module layout.
+- The current manifest also pins Lifesteal 1.0.4 (MIT; server-required),
+  Snatched 1.2.1 (Apache-2.0; client/server-required), and YDM's Weapon Master
+  4.2.7 (CC0-1.0; merged multiplayer build). Lifesteal changes player health
+  and scoreboards; run its documented uninstall function before removing it
+  from an existing world. These gameplay additions require a copied-world
+  migration test and backup/rollback evidence before a server deployment.
 - `manifest/server-side-overrides.txt` corrects reviewed Modrinth side metadata.
   Azulc's Mob Statues remains client-only because its jar loads a rendering
   class on dedicated servers. Swinging Lanterns 1.5.0.1 was removed because its

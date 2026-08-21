@@ -40,7 +40,7 @@
 		supported_blocks = true
 
 	[blocks.wind_vane]
-		#Wind vane animation swings according to this equation: 
+		#Wind vane animation swings according to this equation:
 		#pitch(time) = max_angle_1*sin(2pi*time*pow/period_1) + <max_angle_2>*sin(2pi*time*pow/<period_2>)
 		#where:
 		# - pow = max(1,redstone_power*<power_scaling>)

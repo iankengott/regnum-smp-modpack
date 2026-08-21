@@ -17,7 +17,7 @@
     "showChunks": false,
     "showCoordinates": false,
     "showBiome": false,
-    "showGraph": false,
+    "showGraph": true,
     "showMinMaxStats": false,
     "showLabels": false,
     "metricOrder": [

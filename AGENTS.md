@@ -24,7 +24,7 @@ combinations that do not yet exist.
 ## Current checkpoint
 
 As of 2026-08-21, the repository tracks the live pack's configuration and
-manifests, generated from the main PC's working instance: 271 mods, 224 server
+manifests, generated from the main PC's working instance: 274 mods, 227 server
 mods, 47 client-only mods, 7 resource packs, 1 shader pack, and 2 datapacks, on
 Minecraft 1.21.1 / NeoForge 21.1.248.
 Chunky 1.4.23 is pinned for operator-controlled pregeneration, with saved tasks
@@ -45,6 +45,10 @@ as its primary Modrinth jar; its embedded API and runtime must not also be
 placed in `minecraft/mods/`. The mod list is what is installed, not an approved
 list — approval, a compatibility matrix, and a reproducible release artifact
 are still open.
+
+The current manifest also includes Lifesteal 1.0.4, Snatched 1.2.1, and YDM's
+Weapon Master 4.2.7. Lifesteal changes player health and scoreboards; require a
+copied-world migration test plus backup and rollback evidence before deployment.
 
 Treasure Level Mobs 1.1.4 is customized by the tracked
 `scripts/patch-treasurelevelmobs.sh` lever. It is derived from unmodified
