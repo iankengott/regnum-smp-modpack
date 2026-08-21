@@ -158,7 +158,7 @@ require_tasks_idle() {
 }
 
 stop_server() {
-    local elapsed=0
+    local elapsed=0 pid cwd
     if ! server_is_live; then
         if [[ -n "$(port_line)" ]]; then
             die "port $PORT is held by a foreign process: $(port_line)"
@@ -166,11 +166,20 @@ stop_server() {
         fi
         return 0
     fi
+    pid=$(port_pid)
     say "Stopping Regnum cleanly"
     tmux send-keys -t "=$SESSION:" "save-all flush" Enter
     sleep 5
     tmux send-keys -t "=$SESSION:" "stop" Enter
-    while [[ -n "$(port_line)" && $elapsed -lt 120 ]]; do
+    while (( elapsed < 120 )); do
+        cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)
+        if [[ -z "$(port_line)" && "$cwd" != "$MC_ROOT" ]]; then
+            tmux kill-session -t "=$SESSION" 2>/dev/null || true
+            if ! server_session_exists; then
+                sync -f "$MC_ROOT/world"
+                return 0
+            fi
+        fi
         sleep 2
         elapsed=$((elapsed + 2))
     done
@@ -178,7 +187,12 @@ stop_server() {
         die "Regnum did not release port $PORT within 120 seconds"
         return 1
     fi
-    tmux kill-session -t "=$SESSION" 2>/dev/null || true
+    if [[ "$cwd" == "$MC_ROOT" ]]; then
+        die "Regnum Java process $pid did not exit within 120 seconds"
+        return 1
+    fi
+    die "Regnum tmux session did not exit after Java stopped"
+    return 1
 }
 
 start_server() {
