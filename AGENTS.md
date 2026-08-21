@@ -33,6 +33,14 @@ placed in `minecraft/mods/`. The mod list is what is installed, not an approved
 list — approval, a compatibility matrix, and a reproducible release artifact
 are still open.
 
+Treasure Level Mobs 1.1.4 is customized by the tracked
+`scripts/patch-treasurelevelmobs.sh` lever. It is derived from unmodified
+SHA-256 `c01d8f946367d4a925cc62f246199b052dd5a39d6609f70a5978cefeabcaf0f3`,
+slows only the existing distance contribution to one tenth, caps levels at
+100 by 30,000 Manhattan blocks from spawn, and includes a tick-time migration
+for saved high-level mobs. Do not patch a different upstream build without
+updating the SHA guard and rechecking the bytecode anchors.
+
 ## Subagent collaboration
 
 Use only **Sol high** for bounded manifest, configuration, or test work and

@@ -94,6 +94,18 @@ checks the primary file's SHA-512 from Modrinth, and is safe to rerun.
   remains idle until an operator starts a task. `minecraft/config/chunky/config.json`
   resumes saved tasks after a restart and limits progress messages to one every
   five seconds.
+- Treasure Level Mobs 1.1.4 has a reproducible local patch in
+  `scripts/patch-treasurelevelmobs.sh`. It keeps the mod's advancement, weather,
+  moon, biome, and difficulty inputs, changes only its distance divisor from
+  10,000 to 100,000, and caps the resulting level at
+  `min(100, max(1, floor(manhattan_blocks_from_spawn / 300)))`. The cap reaches
+  level 100 at 30,000 blocks. The patch also clamps the later Ender Dragon
+  override and migrates saved mobs when their chunks tick. The source jar must
+  match the pinned unmodified SHA
+  `c01d8f946367d4a925cc62f246199b052dd5a39d6609f70a5978cefeabcaf0f3` before
+  the patch is built; after installation, the manifest records the patched
+  artifact's own SHA. Multiplayer behavior changes only after the same patched
+  jar is deployed to the dedicated server.
 - LambDynamicLights 4.8.10 uses the single primary Modrinth artifact
   (`DZDOX6ps`). That jar embeds its API and NeoForge runtime. Do not install
   `lambdynamiclights-api-*` or `lambdynamiclights-runtime-*` beside it;
